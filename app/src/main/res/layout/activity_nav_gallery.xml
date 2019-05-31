@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#C8C8C8"
+    tools:context="com.progym.pvbhat7.progymfinal.Builder"
+    >
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <android.support.v7.widget.CardView
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#C8C8C8"
+                android:id="@+id/cardView1">
+
+                <Button
+
+                    android:layout_margin="5dp"
+                    android:id="@+id/chest"
+                    android:layout_width="match_parent"
+                    android:layout_height="220dp"
+                    android:layout_below="@+id/cardView"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/gym2" />
+
+            </android.support.v7.widget.CardView>
+            <android.support.v7.widget.CardView
+                android:id="@+id/cardView2"
+                android:layout_below="@+id/cardView1"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#000000"
+                >
+
+                <Button
+
+                    android:layout_margin="5dp"
+                    android:id="@+id/shoulder"
+                    android:layout_width="match_parent"
+                    android:layout_height="170dp"
+                    android:layout_below="@+id/cardView"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/gym3" />
+
+            </android.support.v7.widget.CardView>
+            <android.support.v7.widget.CardView
+                android:id="@+id/cardView3"
+                android:layout_below="@+id/cardView2"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#000000"
+                >
+
+                <Button
+
+                    android:layout_margin="5dp"
+                    android:id="@+id/biceps"
+                    android:layout_width="match_parent"
+                    android:layout_height="170dp"
+                    android:layout_below="@+id/cardView"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/gym4" />
+
+            </android.support.v7.widget.CardView>
+            <android.support.v7.widget.CardView
+                android:id="@+id/cardView4"
+                android:layout_below="@+id/cardView3"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#000000"
+                >
+
+                <Button
+
+                    android:layout_margin="5dp"
+                    android:id="@+id/triceps"
+                    android:layout_width="match_parent"
+                    android:layout_height="170dp"
+                    android:layout_below="@+id/cardView"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/gym1" />
+
+            </android.support.v7.widget.CardView>
+            <!--<android.support.v7.widget.CardView
+                android:id="@+id/cardView5"
+                android:layout_below="@+id/cardView4"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#000000"
+                >
+
+                <Button
+
+                    android:layout_margin="5dp"
+                    android:id="@+id/lats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/cardView"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/latslogo" />
+
+            </android.support.v7.widget.CardView>
+            <android.support.v7.widget.CardView
+                android:id="@+id/cardView6"
+                android:layout_below="@+id/cardView5"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#000000"
+                >
+
+                <Button
+
+                    android:layout_margin="5dp"
+                    android:id="@+id/squats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/cardView"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/squatslogo" />
+
+            </android.support.v7.widget.CardView>-->
+
+        </LinearLayout>
+    </ScrollView>
+
+
+</RelativeLayout>

@@ -1,0 +1,47 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_screen2"
+    tools:context="com.progym.pvbhat7.progym.OneFragment">
+
+    <android.support.v7.widget.CardView
+        android:id="@+id/card2a"
+        android:layout_marginTop="5dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/card1a"
+        android:background="@drawable/border"
+        android:layout_marginLeft="5dp"
+        android:padding="5dp">
+        <Button
+            android:id="@+id/button3"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:background="@drawable/incine_dumbell_fly" />
+    </android.support.v7.widget.CardView>
+
+    <Button
+        android:id="@+id/button4"
+        android:padding="30dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/card2a"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:text="Set 1   : 12 Repeatations\n
+Set 2 :   10 Repeatations\n
+Set 3   : 08 Repeatations" />
+
+    <Button
+        android:padding="25dp"
+        android:id="@+id/button5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/button4"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:text="Lie down on your back on the bench and grab one dumbell with each hand at shoulder height,elbows just slightly arched. Raise dumbells until they are side by side on top of your and slowly lower them back after a short pause" />
+</RelativeLayout>

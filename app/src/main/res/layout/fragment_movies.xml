@@ -1,0 +1,143 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:ads="http://schemas.android.com/apk/res-auto"
+    android:background="#000000"
+    tools:context="com.progym.pvbhat7.progymfinal.GamesFragment">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+
+
+        <android.support.v7.widget.CardView
+            android:layout_marginTop="15dp"
+            android:id="@+id/card1a"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:background="@drawable/border"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="5dp">
+            <ImageView
+                android:layout_gravity="center"
+                android:id="@+id/image1"
+                android:layout_margin="3dp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true">
+
+            </ImageView>
+
+        </android.support.v7.widget.CardView>
+
+        <android.support.v7.widget.CardView
+            android:id="@+id/card2a"
+            android:layout_width="360px"
+            android:layout_height="135dp"
+            android:layout_below="@+id/card1a"
+            android:background="@drawable/border"
+            android:layout_marginLeft="10dp"
+            android:layout_marginBottom="10dp">
+            <Button
+                android:layout_gravity="center"
+                android:id="@+id/image3"
+                android:background="@drawable/a2"
+                android:alpha="0.51"
+                android:text="beginner"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true">
+
+            </Button>
+
+        </android.support.v7.widget.CardView>
+        <android.support.v7.widget.CardView
+            android:id="@+id/card3a"
+
+            android:layout_width="360px"
+            android:layout_height="135dp"
+            android:layout_below="@+id/card1a"
+            android:background="@drawable/border"
+            android:layout_marginLeft="195dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="10dp">
+            <Button
+                android:layout_gravity="center"
+                android:id="@+id/image4"
+                android:background="@drawable/a1"
+                android:text="builder"
+                android:alpha="0.51"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true">
+
+            </Button>
+
+        </android.support.v7.widget.CardView>
+        <android.support.v7.widget.CardView
+            android:id="@+id/card4a"
+
+            android:layout_width="360px"
+            android:layout_height="135dp"
+            android:layout_below="@+id/card2a"
+            android:background="@drawable/border"
+            android:layout_marginLeft="10dp"
+            android:layout_marginBottom="10dp">
+            <Button
+                android:layout_gravity="center"
+                android:id="@+id/image5"
+                android:text="diet"
+                android:background="@drawable/a3"
+                android:alpha="0.51"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true">
+
+            </Button>
+
+        </android.support.v7.widget.CardView>
+        <android.support.v7.widget.CardView
+            android:id="@+id/card5a"
+
+            android:layout_width="360px"
+            android:layout_height="135dp"
+            android:layout_below="@+id/card3a"
+            android:background="@drawable/border"
+            android:layout_marginLeft="195dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="10dp">
+            <Button
+                android:layout_gravity="center"
+                android:id="@+id/videobutton"
+                android:text="videos"
+                android:background="@drawable/a4"
+                android:alpha="0.51"
+                android:layout_margin="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true">
+
+            </Button>
+
+        </android.support.v7.widget.CardView>
+
+        <com.google.android.gms.ads.AdView
+            android:id="@+id/adView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/card4a"
+            android:layout_centerHorizontal="true"
+            ads:adSize="BANNER"
+            ads:adUnitId="@string/banner_ad_unit_id"></com.google.android.gms.ads.AdView>
+    </RelativeLayout>
+    </FrameLayout>

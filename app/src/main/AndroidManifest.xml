@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    package="com.progym.pvbhat7.progymfinal">
+
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PROFILE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.LOCATION_HARDWARE" />
+
+    <uses-permission-sdk-23 android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
+    <uses-permission-sdk-23 android:name="android.permission.VIBRATE" />
+    <uses-permission-sdk-23 android:name="android.permission.INTERNET" />
+
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <!--
+         The ACCESS_COARSE/FINE_LOCATION permissions are not required to use
+         Google Maps Android API v2, but you must specify either coarse or fine
+         location permissions for the 'MyLocation' functionality. 
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity
+            android:screenOrientation="portrait"
+            android:name=".MainActivity"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <!--
+        <activity android:name=".WelcomeActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        -->
+
+        <activity android:name=".WelcomeActivity"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service android:name=".MyAndroidFirebaseMsgService">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <service android:name=".MyAndroidFirebaseInstanceIdService">
+            <intent-filter>
+                <action android:name="com.google.firebase.INSTANCE_ID_EVENT" />
+            </intent-filter>
+        </service>
+
+        <activity android:name=".AnotherActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SignupActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LoginActivity"
+            android:screenOrientation="portrait">
+
+            <!--
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            -->
+        </activity>
+        <activity android:name=".ResetPasswordActivity"
+            android:screenOrientation="portrait"/>
+        <activity
+            android:name=".LoggedIn"
+            android:label="@string/title_activity_logged_in"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".VideosPage"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".video1"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Diet"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Builder"
+            android:screenOrientation="portrait"/>
+        <activity
+            android:screenOrientation="portrait"
+            android:name=".Beginner"
+            android:label="@string/title_activity_beginner"
+            android:theme="@style/AppTheme"
+            app:tabMode="scrollable" />
+        <activity android:name=".Chest_Tabs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Shoulder_Tabs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Biceps_Tabs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Triceps_Tabs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Lats_Tabs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Squats_Tabs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Abs_Tabs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".MyProfile"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CRUD"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".MyProfileDisplay"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Test"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CHEST_flat_bench_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CHEST_incline_bench_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CHEST_decline_dumbell_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CHEST_dumbell_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CHEST_incline_dumbell_fly"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CHEST_dumbell_bent_and_pullover"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CHEST_chest_dips"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SHOULDER_shoulder_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SHOULDER_military_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SHOULDER_seated_press_machine"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SHOULDER_cable_front_raise"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SHOULDER_dumbell_front_raise"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SHOULDER_dumbell_lataral_raise"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SHOULDER_shoulder_shrug"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".BICEPS_biceps_curls"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".BICEPS_dumbell_curls"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".BICEPS_incline_dumbell_curls"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".BICEPS_preacher_curls"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".BICEPS_concentration_curls"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".BICEPS_hammer_curls"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".BICEPS_chin_ups"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".TRICEPS_dumbell_extention"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".TRICEPS_close_grip_bench_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".TRICEPS_barbell_tricep_extention"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".TRICEPS_french_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".TRICEPS_cable_triceps_extention"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".TRICEPS_kickback"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".TRICEPS_triceps_squeezing"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LATS_front_lats_pull_down"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LATS_close_grill_pull_downs"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LATS_one_arm_cable_row"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LATS_seated_cable_row"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LATS_bentover_barbell_row"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LATS_dumbell_rows"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".LATS_pull_ups"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SQUATS_barbell_squats"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SQUATS_deadlift"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SQUATS_calf_raise"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SQUATS_leg_press"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SQUATS_leg_extention"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SQUATS_back_leg_extention"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".SQUATS_squats"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".ABS_abs_leg_raise"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".ABS_cross_body_crunches"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".ABS_leg_raise"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".ABS_jackknives"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".ABS_oblique_raises"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".ABS_reverse_crunching"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".ABS_side_bend"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Coupons"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".CreateDiscount"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Nav_gallery"
+            android:screenOrientation="portrait"/>
+        <!--
+             The API key for Google Maps-based APIs is defined as a string resource.
+             (See the file "res/values/google_maps_api.xml").
+             Note that the API key is linked to the encryption key used to sign the APK.
+             You need a different API key for each encryption key, including the release key that is used to
+             sign the APK for publishing.
+             You can define the keys for the debug and release targets in src/debug/ and src/release/. 
+        -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/google_maps_key" />
+
+        <activity
+            android:screenOrientation="portrait"
+            android:name=".Nav_maps"
+            android:label="@string/title_activity_nav_maps" />
+        <activity android:name=".Nav_wallet"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".Credits"
+            android:screenOrientation="portrait"></activity>
+    </application>
+
+</manifest>
