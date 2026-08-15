@@ -1,0 +1,1061 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.2
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Generation Time: Apr 24, 2026 at 01:28 AM
+-- Server version: 11.8.6-MariaDB-log
+-- PHP Version: 7.2.34
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `u636480992_ggs`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_user`
+--
+
+CREATE TABLE `admin_user` (
+  `id` int(11) NOT NULL,
+  `authorizedToApprovePayment` varchar(20) NOT NULL,
+  `name` varchar(30) NOT NULL,
+  `username` varchar(20) NOT NULL,
+  `password` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `album`
+--
+
+CREATE TABLE `album` (
+  `id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `image` varchar(500) NOT NULL,
+  `private` varchar(25) NOT NULL DEFAULT 'false',
+  `discontinue` varchar(25) NOT NULL DEFAULT 'false',
+  `url` varchar(255) NOT NULL,
+  `month` int(11) NOT NULL,
+  `year` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `attendance`
+--
+
+CREATE TABLE `attendance` (
+  `id` int(11) NOT NULL,
+  `cid` int(11) NOT NULL,
+  `date` varchar(15) NOT NULL,
+  `status` int(11) NOT NULL,
+  `day` int(11) NOT NULL,
+  `month` int(11) NOT NULL,
+  `year` int(11) NOT NULL,
+  `timeStamp` varchar(25) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `batch_logs`
+--
+
+CREATE TABLE `batch_logs` (
+  `id` int(11) NOT NULL,
+  `batchName` varchar(255) DEFAULT NULL,
+  `date` varchar(255) DEFAULT NULL,
+  `status` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `brand_images`
+--
+
+CREATE TABLE `brand_images` (
+  `id` int(11) NOT NULL,
+  `banner_1` varchar(255) DEFAULT NULL,
+  `brandName` varchar(255) DEFAULT NULL,
+  `login_brand_logo` varchar(255) DEFAULT NULL,
+  `login_screen_banner` varchar(255) DEFAULT NULL,
+  `owner_1` varchar(255) DEFAULT NULL,
+  `owner_2` varchar(255) DEFAULT NULL,
+  `trainer_1` varchar(255) DEFAULT NULL,
+  `trainer_2` varchar(255) DEFAULT NULL,
+  `appAdvertise_1` varchar(255) DEFAULT NULL,
+  `appAdvertise_2` varchar(255) DEFAULT NULL,
+  `appAdvertise_3` varchar(255) DEFAULT NULL,
+  `appAdvertise_4` varchar(255) DEFAULT NULL,
+  `appBanner_1` varchar(255) DEFAULT NULL,
+  `appBanner_2` varchar(255) DEFAULT NULL,
+  `appBanner_3` varchar(255) DEFAULT NULL,
+  `appBanner_4` varchar(255) DEFAULT NULL,
+  `h1` varchar(200) NOT NULL,
+  `h2` varchar(200) NOT NULL,
+  `h3` varchar(200) NOT NULL,
+  `h4` varchar(200) NOT NULL,
+  `h5` varchar(200) NOT NULL,
+  `appAdvertise_1Contact` varchar(255) DEFAULT NULL,
+  `appAdvertise_2Contact` varchar(255) DEFAULT NULL,
+  `appAdvertise_3Contact` varchar(255) DEFAULT NULL,
+  `appAdvertise_4Contact` varchar(255) DEFAULT NULL,
+  `appBanner_1Contact` varchar(255) DEFAULT NULL,
+  `appBanner_2Contact` varchar(255) DEFAULT NULL,
+  `appBanner_3Contact` varchar(255) DEFAULT NULL,
+  `appBanner_4Contact` varchar(255) DEFAULT NULL,
+  `upgradePlan1_img` varchar(220) NOT NULL,
+  `upgradePlan2_img` varchar(220) NOT NULL,
+  `upgradePlan3_img` varchar(220) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `client`
+--
+
+CREATE TABLE `client` (
+  `id` int(11) NOT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `birthDate` varchar(255) DEFAULT NULL,
+  `bloodGroup` varchar(255) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `gender` varchar(255) DEFAULT NULL,
+  `mobile` varchar(255) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `previousGym` varchar(255) DEFAULT NULL,
+  `referPoints` varchar(255) DEFAULT NULL,
+  `reference` varchar(255) DEFAULT NULL,
+  `remarks` varchar(255) DEFAULT NULL,
+  `height` double DEFAULT NULL,
+  `weight` double DEFAULT NULL,
+  `occupation` varchar(255) DEFAULT NULL,
+  `profileActiveFlag` varchar(255) DEFAULT NULL,
+  `photo` varchar(255) DEFAULT NULL,
+  `creationSource` varchar(255) DEFAULT NULL,
+  `isPTClient` varchar(255) DEFAULT NULL,
+  `awp` varchar(255) DEFAULT NULL,
+  `adp` varchar(255) DEFAULT NULL,
+  `isGymClient` varchar(30) NOT NULL,
+  `admissionDate` varchar(30) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `customer`
+--
+
+CREATE TABLE `customer` (
+  `profileId` int(11) NOT NULL,
+  `firstName` varchar(50) NOT NULL,
+  `lastName` varchar(50) NOT NULL,
+  `dob` varchar(50) NOT NULL,
+  `email` varchar(50) NOT NULL,
+  `mobile1` varchar(50) NOT NULL,
+  `mobile2` varchar(50) NOT NULL,
+  `gender` varchar(20) NOT NULL,
+  `creationDate` varchar(50) NOT NULL,
+  `creationSource` varchar(50) NOT NULL,
+  `discontinue` varchar(50) NOT NULL,
+  `activePackageId` int(11) DEFAULT NULL,
+  `profilePhotoId` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `dietplanobjecttable`
+--
+
+CREATE TABLE `dietplanobjecttable` (
+  `id` int(11) NOT NULL,
+  `adminDataSyncRequired` varchar(255) DEFAULT NULL,
+  `clientDataSyncRequired` varchar(255) DEFAULT NULL,
+  `dietDate` varchar(255) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `cid` int(11) DEFAULT NULL,
+  `dptid` int(11) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_1` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_2` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_3` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_4` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_5` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_6` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_7` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_8` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_9` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_10` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_11` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_12` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_13` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_14` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_15` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_16` varchar(255) DEFAULT NULL,
+  `clientCompletionStatus_timeActivity_17` varchar(255) DEFAULT NULL,
+  `externalCode` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `dietplantemplate`
+--
+
+CREATE TABLE `dietplantemplate` (
+  `id` int(11) NOT NULL,
+  `cid` int(11) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `createDate` varchar(255) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `activity_1` varchar(255) DEFAULT NULL,
+  `activity_2` varchar(255) DEFAULT NULL,
+  `activity_3` varchar(255) DEFAULT NULL,
+  `activity_4` varchar(255) DEFAULT NULL,
+  `activity_5` varchar(255) DEFAULT NULL,
+  `activity_6` varchar(255) DEFAULT NULL,
+  `activity_7` varchar(255) DEFAULT NULL,
+  `activity_8` varchar(255) DEFAULT NULL,
+  `activity_9` varchar(255) DEFAULT NULL,
+  `activity_10` varchar(255) DEFAULT NULL,
+  `activity_11` varchar(255) DEFAULT NULL,
+  `activity_12` varchar(255) DEFAULT NULL,
+  `activity_13` varchar(255) DEFAULT NULL,
+  `activity_14` varchar(255) DEFAULT NULL,
+  `activity_15` varchar(255) DEFAULT NULL,
+  `activity_16` varchar(255) DEFAULT NULL,
+  `activity_17` varchar(255) DEFAULT NULL,
+  `time_1` varchar(255) DEFAULT NULL,
+  `time_2` varchar(255) DEFAULT NULL,
+  `time_3` varchar(255) DEFAULT NULL,
+  `time_4` varchar(255) DEFAULT NULL,
+  `time_5` varchar(255) DEFAULT NULL,
+  `time_6` varchar(255) DEFAULT NULL,
+  `time_7` varchar(255) DEFAULT NULL,
+  `time_8` varchar(255) DEFAULT NULL,
+  `time_9` varchar(255) DEFAULT NULL,
+  `time_10` varchar(255) DEFAULT NULL,
+  `time_11` varchar(255) DEFAULT NULL,
+  `time_12` varchar(255) DEFAULT NULL,
+  `time_13` varchar(255) DEFAULT NULL,
+  `time_14` varchar(255) DEFAULT NULL,
+  `time_15` varchar(255) DEFAULT NULL,
+  `time_16` varchar(255) DEFAULT NULL,
+  `time_17` varchar(255) DEFAULT NULL,
+  `externalCode` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `diettimeslots`
+--
+
+CREATE TABLE `diettimeslots` (
+  `id` int(11) NOT NULL,
+  `time_1` varchar(255) DEFAULT NULL,
+  `time_10` varchar(255) DEFAULT NULL,
+  `time_11` varchar(255) DEFAULT NULL,
+  `time_12` varchar(255) DEFAULT NULL,
+  `time_13` varchar(255) DEFAULT NULL,
+  `time_14` varchar(255) DEFAULT NULL,
+  `time_15` varchar(255) DEFAULT NULL,
+  `time_16` varchar(255) DEFAULT NULL,
+  `time_17` varchar(255) DEFAULT NULL,
+  `time_2` varchar(255) DEFAULT NULL,
+  `time_3` varchar(255) DEFAULT NULL,
+  `time_4` varchar(255) DEFAULT NULL,
+  `time_5` varchar(255) DEFAULT NULL,
+  `time_6` varchar(255) DEFAULT NULL,
+  `time_7` varchar(255) DEFAULT NULL,
+  `time_8` varchar(255) DEFAULT NULL,
+  `time_9` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `employee`
+--
+
+CREATE TABLE `employee` (
+  `id` int(11) NOT NULL,
+  `name` varchar(256) NOT NULL,
+  `email` varchar(50) DEFAULT NULL,
+  `age` int(11) NOT NULL,
+  `designation` varchar(255) NOT NULL,
+  `created` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `enquiry`
+--
+
+CREATE TABLE `enquiry` (
+  `id` int(11) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `mobile` varchar(15) NOT NULL,
+  `email` varchar(30) NOT NULL,
+  `updateDate` varchar(20) NOT NULL,
+  `status` varchar(10) NOT NULL,
+  `discontinue` varchar(10) NOT NULL,
+  `trainer` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `fcmtoken`
+--
+
+CREATE TABLE `fcmtoken` (
+  `id` int(11) NOT NULL,
+  `mobile` varchar(50) NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `discontinue` varchar(25) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `feedback`
+--
+
+CREATE TABLE `feedback` (
+  `id` int(11) NOT NULL,
+  `clientId` varchar(10) NOT NULL,
+  `name` varchar(30) NOT NULL,
+  `email` varchar(30) NOT NULL,
+  `mobile` varchar(30) NOT NULL,
+  `feedback` varchar(30) DEFAULT 'false'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `merchandise`
+--
+
+CREATE TABLE `merchandise` (
+  `id` int(11) NOT NULL,
+  `productName` varchar(50) NOT NULL,
+  `oldPrice` int(11) NOT NULL,
+  `newPrice` int(11) NOT NULL,
+  `productPhoto` varchar(200) NOT NULL,
+  `discontinue` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `module`
+--
+
+CREATE TABLE `module` (
+  `id` int(11) NOT NULL,
+  `mac` varchar(20) NOT NULL,
+  `email` varchar(20) NOT NULL,
+  `sms` varchar(20) NOT NULL,
+  `diet` varchar(20) NOT NULL,
+  `workout` varchar(20) NOT NULL,
+  `monthlyData` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `muscleworkout`
+--
+
+CREATE TABLE `muscleworkout` (
+  `id` int(11) NOT NULL,
+  `day` varchar(255) DEFAULT NULL,
+  `mainWorkoutName` varchar(255) DEFAULT NULL,
+  `subWorkoutName` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` int(11) NOT NULL,
+  `activity` varchar(255) DEFAULT NULL,
+  `activityDate` varchar(255) DEFAULT NULL,
+  `amount` varchar(255) DEFAULT NULL,
+  `clientGender` varchar(255) DEFAULT NULL,
+  `clientId` int(11) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `memberName` varchar(255) DEFAULT NULL,
+  `trainer` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `orders`
+--
+
+CREATE TABLE `orders` (
+  `order_id` int(11) NOT NULL,
+  `img` varchar(200) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `date` varchar(50) NOT NULL,
+  `status` varchar(20) NOT NULL,
+  `clientId` varchar(20) NOT NULL,
+  `amount` double NOT NULL,
+  `txnId` varchar(100) NOT NULL,
+  `paymentStatus` varchar(50) NOT NULL,
+  `trackingDetails` varchar(100) NOT NULL,
+  `proCoinsUsed` double NOT NULL,
+  `couponUsed` varchar(50) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `packagedetails`
+--
+
+CREATE TABLE `packagedetails` (
+  `id` int(11) NOT NULL,
+  `amountPaid` double DEFAULT NULL,
+  `packageId` int(11) DEFAULT NULL,
+  `status` varchar(255) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `fees` double DEFAULT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `startDate` varchar(255) DEFAULT NULL,
+  `endDate` varchar(255) DEFAULT NULL,
+  `paymentDate` varchar(255) DEFAULT NULL,
+  `clientId` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `packages`
+--
+
+CREATE TABLE `packages` (
+  `id` int(11) NOT NULL,
+  `days` int(11) DEFAULT NULL,
+  `fees` double DEFAULT NULL,
+  `gender` varchar(255) DEFAULT NULL,
+  `description` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `paymenttransaction`
+--
+
+CREATE TABLE `paymenttransaction` (
+  `id` int(11) NOT NULL,
+  `feesPaid` double DEFAULT NULL,
+  `isApproved` varchar(255) DEFAULT NULL,
+  `packageDetailsId` int(11) DEFAULT NULL,
+  `paymentDate` varchar(255) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `clientGender` varchar(255) DEFAULT NULL,
+  `clientId` varchar(255) DEFAULT NULL,
+  `paymentMode` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `procointransaction`
+--
+
+CREATE TABLE `procointransaction` (
+  `id` int(11) NOT NULL,
+  `txnId` varchar(100) NOT NULL,
+  `des` varchar(100) NOT NULL,
+  `amount` double NOT NULL,
+  `creditDebit` varchar(20) NOT NULL,
+  `txnDate` varchar(30) NOT NULL,
+  `clientId` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `rewards`
+--
+
+CREATE TABLE `rewards` (
+  `id` int(11) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `subTitle` varchar(100) NOT NULL,
+  `img` varchar(200) NOT NULL,
+  `amount` varchar(100) NOT NULL,
+  `isRedeemed` varchar(20) NOT NULL,
+  `creditDebit` varchar(20) NOT NULL,
+  `clientId` varchar(20) NOT NULL,
+  `redeemDate` varchar(150) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `supplements`
+--
+
+CREATE TABLE `supplements` (
+  `id` int(11) NOT NULL,
+  `productName` varchar(50) NOT NULL,
+  `oldPrice` int(11) NOT NULL,
+  `newPrice` int(11) NOT NULL,
+  `productPhoto` varchar(200) NOT NULL,
+  `productPhotoDesc` varchar(220) NOT NULL,
+  `productPhotoDesc1` varchar(220) NOT NULL,
+  `discontinue` varchar(10) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tasks`
+--
+
+CREATE TABLE `tasks` (
+  `id` int(11) NOT NULL,
+  `name` varchar(20) NOT NULL,
+  `img` varchar(255) NOT NULL,
+  `timing` varchar(25) NOT NULL,
+  `description` varchar(100) NOT NULL,
+  `date` varchar(20) NOT NULL,
+  `submitStatus` varchar(20) NOT NULL,
+  `submitImg` varchar(255) NOT NULL,
+  `submitTimestamp` varchar(20) NOT NULL,
+  `isApproved` varchar(20) NOT NULL,
+  `points` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `t_workoutmaintype`
+--
+
+CREATE TABLE `t_workoutmaintype` (
+  `id` int(11) NOT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `t_workoutsubtype`
+--
+
+CREATE TABLE `t_workoutsubtype` (
+  `id` int(11) NOT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `mtid` int(11) DEFAULT NULL,
+  `gifFilePath` varchar(255) DEFAULT NULL,
+  `reps` int(11) DEFAULT NULL,
+  `sets` int(11) DEFAULT NULL,
+  `muscle` varchar(50) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `wall`
+--
+
+CREATE TABLE `wall` (
+  `id` int(11) NOT NULL,
+  `clientId` varchar(50) NOT NULL,
+  `clientName` varchar(50) NOT NULL,
+  `clientPhoto` varchar(200) NOT NULL,
+  `clientMobile` varchar(50) NOT NULL,
+  `clientEmail` varchar(50) NOT NULL,
+  `uploadDate` varchar(50) NOT NULL,
+  `postPhoto` varchar(200) NOT NULL,
+  `isApproved` varchar(50) NOT NULL,
+  `hashTag` varchar(50) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `WeightTracker`
+--
+
+CREATE TABLE `WeightTracker` (
+  `id` int(11) NOT NULL,
+  `date` varchar(50) NOT NULL,
+  `cid` int(11) NOT NULL,
+  `weight` double NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `workoutscheduleobject`
+--
+
+CREATE TABLE `workoutscheduleobject` (
+  `id` int(11) NOT NULL,
+  `cid` int(11) DEFAULT NULL,
+  `mtid` varchar(50) DEFAULT NULL,
+  `externalcode` int(11) NOT NULL,
+  `date` varchar(255) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `workoutsubtype`
+--
+
+CREATE TABLE `workoutsubtype` (
+  `id` int(11) NOT NULL,
+  `wsoid` int(11) DEFAULT NULL,
+  `twsid` varchar(55) DEFAULT NULL,
+  `maxReps` varchar(255) DEFAULT NULL,
+  `sets` int(11) DEFAULT NULL,
+  `discontinue` varchar(255) DEFAULT NULL,
+  `externalCode` int(11) NOT NULL,
+  `clientPerformance` varchar(10) NOT NULL,
+  `image` varchar(220) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `admin_user`
+--
+ALTER TABLE `admin_user`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `album`
+--
+ALTER TABLE `album`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `attendance`
+--
+ALTER TABLE `attendance`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `batch_logs`
+--
+ALTER TABLE `batch_logs`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `brand_images`
+--
+ALTER TABLE `brand_images`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `client`
+--
+ALTER TABLE `client`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `customer`
+--
+ALTER TABLE `customer`
+  ADD PRIMARY KEY (`profileId`);
+
+--
+-- Indexes for table `dietplanobjecttable`
+--
+ALTER TABLE `dietplanobjecttable`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `FK_t271fg5i323qoqvnj4w0oqgfa` (`cid`),
+  ADD KEY `FK_719jtitrxqjgkc5x3kxwrendj` (`dptid`);
+
+--
+-- Indexes for table `dietplantemplate`
+--
+ALTER TABLE `dietplantemplate`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `FK_qxbgr6mxbkh4cpiu64cr2rfgu` (`cid`);
+
+--
+-- Indexes for table `diettimeslots`
+--
+ALTER TABLE `diettimeslots`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `employee`
+--
+ALTER TABLE `employee`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `enquiry`
+--
+ALTER TABLE `enquiry`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `fcmtoken`
+--
+ALTER TABLE `fcmtoken`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `feedback`
+--
+ALTER TABLE `feedback`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `merchandise`
+--
+ALTER TABLE `merchandise`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `module`
+--
+ALTER TABLE `module`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `muscleworkout`
+--
+ALTER TABLE `muscleworkout`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `orders`
+--
+ALTER TABLE `orders`
+  ADD PRIMARY KEY (`order_id`);
+
+--
+-- Indexes for table `packagedetails`
+--
+ALTER TABLE `packagedetails`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `packages`
+--
+ALTER TABLE `packages`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `paymenttransaction`
+--
+ALTER TABLE `paymenttransaction`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `procointransaction`
+--
+ALTER TABLE `procointransaction`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `rewards`
+--
+ALTER TABLE `rewards`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `supplements`
+--
+ALTER TABLE `supplements`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `tasks`
+--
+ALTER TABLE `tasks`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `t_workoutmaintype`
+--
+ALTER TABLE `t_workoutmaintype`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `t_workoutsubtype`
+--
+ALTER TABLE `t_workoutsubtype`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `FK_cihlyglbus16fhqe8duc3mswk` (`mtid`);
+
+--
+-- Indexes for table `wall`
+--
+ALTER TABLE `wall`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `WeightTracker`
+--
+ALTER TABLE `WeightTracker`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `workoutscheduleobject`
+--
+ALTER TABLE `workoutscheduleobject`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `workoutsubtype`
+--
+ALTER TABLE `workoutsubtype`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `admin_user`
+--
+ALTER TABLE `admin_user`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `album`
+--
+ALTER TABLE `album`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `attendance`
+--
+ALTER TABLE `attendance`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `batch_logs`
+--
+ALTER TABLE `batch_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `brand_images`
+--
+ALTER TABLE `brand_images`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `client`
+--
+ALTER TABLE `client`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `customer`
+--
+ALTER TABLE `customer`
+  MODIFY `profileId` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `dietplanobjecttable`
+--
+ALTER TABLE `dietplanobjecttable`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `dietplantemplate`
+--
+ALTER TABLE `dietplantemplate`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `diettimeslots`
+--
+ALTER TABLE `diettimeslots`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `employee`
+--
+ALTER TABLE `employee`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `enquiry`
+--
+ALTER TABLE `enquiry`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `fcmtoken`
+--
+ALTER TABLE `fcmtoken`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `feedback`
+--
+ALTER TABLE `feedback`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `merchandise`
+--
+ALTER TABLE `merchandise`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `module`
+--
+ALTER TABLE `module`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `muscleworkout`
+--
+ALTER TABLE `muscleworkout`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `orders`
+--
+ALTER TABLE `orders`
+  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `packagedetails`
+--
+ALTER TABLE `packagedetails`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `packages`
+--
+ALTER TABLE `packages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `paymenttransaction`
+--
+ALTER TABLE `paymenttransaction`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `procointransaction`
+--
+ALTER TABLE `procointransaction`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `rewards`
+--
+ALTER TABLE `rewards`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `supplements`
+--
+ALTER TABLE `supplements`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `tasks`
+--
+ALTER TABLE `tasks`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `t_workoutmaintype`
+--
+ALTER TABLE `t_workoutmaintype`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `t_workoutsubtype`
+--
+ALTER TABLE `t_workoutsubtype`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `wall`
+--
+ALTER TABLE `wall`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `WeightTracker`
+--
+ALTER TABLE `WeightTracker`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `workoutscheduleobject`
+--
+ALTER TABLE `workoutscheduleobject`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `workoutsubtype`
+--
+ALTER TABLE `workoutsubtype`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `t_workoutsubtype`
+--
+ALTER TABLE `t_workoutsubtype`
+  ADD CONSTRAINT `FK_cihlyglbus16fhqe8duc3mswk` FOREIGN KEY (`mtid`) REFERENCES `t_workoutmaintype` (`id`);
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

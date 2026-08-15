@@ -1,0 +1,21 @@
+CREATE TABLE `email_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clientId` int(11) DEFAULT NULL,
+  `recipientName` varchar(255) DEFAULT NULL,
+  `recipientEmail` varchar(255) DEFAULT NULL,
+  `recipientMobile` varchar(20) DEFAULT NULL,
+  `type` varchar(40) NOT NULL,
+  `subject` varchar(500) DEFAULT NULL,
+  `bodyHtml` LONGTEXT DEFAULT NULL,
+  `smsText` TEXT DEFAULT NULL,
+  `whatsappText` TEXT DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'sent',
+  `errorMessage` varchar(500) DEFAULT NULL,
+  `triggeredBy` varchar(50) DEFAULT 'system',
+  `sentAt` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_type` (`type`),
+  KEY `idx_clientId` (`clientId`),
+  KEY `idx_sentAt` (`sentAt`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

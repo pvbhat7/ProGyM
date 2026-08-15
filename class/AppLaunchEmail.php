@@ -1,0 +1,365 @@
+<?php
+require_once __DIR__ . '/../config/mail_config.php';
+require_once __DIR__ . '/../lib/phpmailer/src/Exception.php';
+require_once __DIR__ . '/../lib/phpmailer/src/PHPMailer.php';
+require_once __DIR__ . '/../lib/phpmailer/src/SMTP.php';
+require_once __DIR__ . '/EmailLogger.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+class AppLaunchEmail {
+
+    private static function buildSmsText($name) {
+        return "Hi {$name}! ProGym app is now live. Track workouts, diet, attendance & earn ProCoins. Login: https://tavrostechinfo.com/progym/login";
+    }
+
+    private static function buildWhatsappText($name) {
+        return "🚀 *ProGym App is Now Live!*\n\nHi {$name},\n\nYour gym just went digital. Track workouts, diet, attendance, weight & shop — all from your phone.\n\n🎁 *100 ProCoins* welcome bonus waiting for you!\n\n👉 https://tavrostechinfo.com/progym/login";
+    }
+
+    /**
+     * Send to a single client (one SMTP connection per call).
+     */
+    public static function send($db, $clientId) {
+        $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
+        $s->execute([$clientId]);
+        $client = $s->fetch(PDO::FETCH_ASSOC);
+        if (!$client || empty(trim($client['email'] ?? ''))) return false;
+
+        $subject  = 'ProGym App Launch - Your gym, now digital!';
+        $html     = self::buildHtml(htmlspecialchars($client['name']));
+        $smsText  = self::buildSmsText($client['name']);
+        $whatsapp = self::buildWhatsappText($client['name']);
+
+        try {
+            $mail = self::makeMailer();
+            $mail->addAddress(trim($client['email']), $client['name']);
+            $mail->Subject = $subject;
+            $mail->Body    = $html;
+            $mail->send();
+            EmailLogger::log($db, 'app_launch', $clientId, $client['name'], $client['email'], $client['mobile'] ?? null, $subject, $html, $smsText, $whatsapp, 'sent');
+            return true;
+        } catch (Exception $e) {
+            error_log('AppLaunchEmail error: ' . $e->getMessage());
+            EmailLogger::log($db, 'app_launch', $clientId, $client['name'], $client['email'], $client['mobile'] ?? null, $subject, $html, $smsText, $whatsapp, 'failed', $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Send to a batch of client IDs reusing one SMTP connection.
+     * Returns ['sent'=>int, 'skipped'=>int, 'results'=>['id'=>'sent'|'skipped',...]]
+     */
+    public static function sendBatch($db, array $clientIds) {
+        $sent = 0; $skipped = 0; $results = [];
+
+        try {
+            $mail = self::makeMailer();
+            $mail->SMTPKeepAlive = true;
+
+            foreach ($clientIds as $rawId) {
+                $id = intval($rawId);
+                if ($id <= 0) { $skipped++; $results[strval($rawId)] = 'skipped'; continue; }
+
+                $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
+                $s->execute([$id]);
+                $client = $s->fetch(PDO::FETCH_ASSOC);
+
+                if (!$client || empty(trim($client['email'] ?? ''))) {
+                    $skipped++; $results[strval($id)] = 'skipped'; continue;
+                }
+
+                $subject  = 'ProGym App Launch - Your gym, now digital!';
+                $html     = self::buildHtml(htmlspecialchars($client['name']));
+                $smsText  = self::buildSmsText($client['name']);
+                $whatsapp = self::buildWhatsappText($client['name']);
+
+                try {
+                    $mail->clearAddresses();
+                    $mail->addAddress(trim($client['email']), $client['name']);
+                    $mail->Subject = $subject;
+                    $mail->Body    = $html;
+                    $mail->send();
+                    EmailLogger::log($db, 'app_launch', $id, $client['name'], $client['email'], $client['mobile'] ?? null, $subject, $html, $smsText, $whatsapp, 'sent', null, 'batch');
+                    $sent++; $results[strval($id)] = 'sent';
+                } catch (Exception $e) {
+                    error_log('AppLaunchEmail batch error id=' . $id . ': ' . $e->getMessage());
+                    EmailLogger::log($db, 'app_launch', $id, $client['name'], $client['email'], $client['mobile'] ?? null, $subject, $html, $smsText, $whatsapp, 'failed', $e->getMessage(), 'batch');
+                    $skipped++; $results[strval($id)] = 'skipped';
+                }
+            }
+
+            $mail->smtpClose();
+        } catch (Exception $e) {
+            error_log('AppLaunchEmail SMTP connect error: ' . $e->getMessage());
+            // Mark all as skipped if we can't even connect
+            foreach ($clientIds as $rawId) {
+                $id = intval($rawId);
+                if ($id > 0 && !isset($results[strval($id)])) {
+                    $skipped++; $results[strval($id)] = 'skipped';
+                }
+            }
+        }
+
+        return ['sent' => $sent, 'skipped' => $skipped, 'results' => $results];
+    }
+
+    private static function makeMailer() {
+        $mail = new PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host       = SMTP_HOST;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = SMTP_USER;
+        $mail->Password   = SMTP_PASS;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = SMTP_PORT;
+        $mail->CharSet    = 'UTF-8';
+        $mail->isHTML(true);
+        $mail->setFrom(SMTP_USER, MAIL_FROM_NAME);
+        return $mail;
+    }
+
+    private static function buildHtml($clientName) {
+        $logo  = GYM_LOGO_URL;
+        $phone = GYM_PHONE1;
+        $wa    = GYM_WHATSAPP;
+        $today = date('D, d M Y');
+
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;">
+  <tr>
+    <td align="center" style="padding:32px 12px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;">
+
+        <!-- HEADER -->
+        <tr>
+          <td style="background:#0f172a;border-radius:16px 16px 0 0;padding:24px 32px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="vertical-align:middle;">
+                  <img src="{$logo}" alt="Logo" width="48" height="48"
+                       style="display:inline-block;vertical-align:middle;border-radius:8px;">
+                  <span style="display:inline-block;vertical-align:middle;padding-left:12px;">
+                    <span style="display:block;font-size:17px;font-weight:bold;color:#ffffff;line-height:1.3;">Pro Gym</span>
+                    <span style="display:block;font-size:11px;color:#94a3b8;line-height:1.4;letter-spacing:0.3px;">Kolhapur</span>
+                  </span>
+                </td>
+                <td align="right" style="font-size:11px;color:#94a3b8;vertical-align:middle;white-space:nowrap;">{$today}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- HERO -->
+        <tr>
+          <td style="background:#ffffff;padding:36px 32px 28px;text-align:center;
+                     border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <table cellpadding="0" cellspacing="0" border="0" align="center">
+              <tr>
+                <td align="center">
+                  <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin-bottom:18px;">
+                    <tr>
+                      <td align="center" style="width:64px;height:64px;background:#dbeafe;border-radius:50%;
+                                                font-size:30px;line-height:64px;">
+                        &#128640;
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:0 0 6px;font-size:22px;font-weight:800;color:#1d4ed8;letter-spacing:-0.3px;">ProGym App is Now Live!</p>
+                  <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">
+                    Hi <strong style="color:#0f172a;">{$clientName}</strong>, your gym experience just went digital.<br>
+                    Track workouts, diet, attendance and more &mdash; from any device, anytime.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- FEATURES -->
+        <tr>
+          <td style="background:#ffffff;padding:0 32px 28px;
+                     border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+              <tr>
+                <td colspan="2" style="background:#f8fafc;padding:9px 16px;
+                    font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:1px;
+                    text-transform:uppercase;border-bottom:1px solid #e2e8f0;">
+                  What's Inside the App
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:18px;width:40px;background:#ffffff;border-bottom:1px solid #f1f5f9;text-align:center;">&#127947;</td>
+                <td style="padding:11px 16px;font-size:13px;background:#ffffff;border-bottom:1px solid #f1f5f9;">
+                  <span style="font-weight:700;color:#0f172a;">Workout Tracker</span><br>
+                  <span style="color:#64748b;font-size:12px;">Daily exercises with GIF demos &mdash; mark your sets done</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:18px;background:#f8fafc;border-bottom:1px solid #f1f5f9;text-align:center;">&#129367;</td>
+                <td style="padding:11px 16px;font-size:13px;background:#f8fafc;border-bottom:1px solid #f1f5f9;">
+                  <span style="font-weight:700;color:#0f172a;">Diet Tracker</span><br>
+                  <span style="color:#64748b;font-size:12px;">17 meal slots &mdash; tap to mark each meal complete</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:18px;background:#ffffff;border-bottom:1px solid #f1f5f9;text-align:center;">&#128197;</td>
+                <td style="padding:11px 16px;font-size:13px;background:#ffffff;border-bottom:1px solid #f1f5f9;">
+                  <span style="font-weight:700;color:#0f172a;">Attendance</span><br>
+                  <span style="color:#64748b;font-size:12px;">Full history with calendar view</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:18px;background:#f8fafc;border-bottom:1px solid #f1f5f9;text-align:center;">&#9878;</td>
+                <td style="padding:11px 16px;font-size:13px;background:#f8fafc;border-bottom:1px solid #f1f5f9;">
+                  <span style="font-weight:700;color:#0f172a;">Weight Tracker</span><br>
+                  <span style="color:#64748b;font-size:12px;">Log your weight and chart your progress over time</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:18px;background:#ffffff;border-bottom:1px solid #f1f5f9;text-align:center;">&#128717;</td>
+                <td style="padding:11px 16px;font-size:13px;background:#ffffff;border-bottom:1px solid #f1f5f9;">
+                  <span style="font-weight:700;color:#0f172a;">Shop</span><br>
+                  <span style="color:#64748b;font-size:12px;">Supplements &amp; merchandise, delivered to you</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:18px;background:#f8fafc;text-align:center;">&#128247;</td>
+                <td style="padding:11px 16px;font-size:13px;background:#f8fafc;">
+                  <span style="font-weight:700;color:#0f172a;">Community Wall</span><br>
+                  <span style="color:#64748b;font-size:12px;">Share your gym moments with the ProGym family</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- PROCOIN -->
+        <tr>
+          <td style="background:#ffffff;padding:0 32px 28px;
+                     border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border:1px solid #fde68a;border-radius:10px;overflow:hidden;">
+              <tr>
+                <td colspan="2" style="background:#fef3c7;padding:9px 16px;
+                    font-size:10px;font-weight:700;color:#92400e;letter-spacing:1px;
+                    text-transform:uppercase;border-bottom:1px solid #fde68a;">
+                  &#129689; Earn ProCoins &mdash; Real Value
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:20px;width:40px;background:#fffbeb;border-bottom:1px solid #fde68a;text-align:center;">&#129689;</td>
+                <td style="padding:11px 16px;background:#fffbeb;border-bottom:1px solid #fde68a;">
+                  <span style="font-size:15px;font-weight:800;color:#b45309;">100 ProCoins</span><br>
+                  <span style="font-size:12px;color:#78350f;">Welcome bonus &mdash; just for signing in</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:20px;background:#fff8e1;border-bottom:1px solid #fde68a;text-align:center;">&#129689;</td>
+                <td style="padding:11px 16px;background:#fff8e1;border-bottom:1px solid #fde68a;">
+                  <span style="font-size:15px;font-weight:800;color:#b45309;">25 ProCoins</span><br>
+                  <span style="font-size:12px;color:#78350f;">Every order paid with coupon</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:11px 16px;font-size:20px;background:#fffbeb;border-bottom:1px solid #fde68a;text-align:center;">&#129689;</td>
+                <td style="padding:11px 16px;background:#fffbeb;border-bottom:1px solid #fde68a;">
+                  <span style="font-size:15px;font-weight:800;color:#b45309;">10 ProCoins</span><br>
+                  <span style="font-size:12px;color:#78350f;">Each approved daily challenge</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding:12px 16px;background:#fef9c3;text-align:center;">
+                  <span style="font-size:13px;font-weight:700;color:#92400e;">
+                    &#128161;&nbsp; 1 ProCoin = &#8377;1 &mdash; Redeem in the shop for real discounts
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- CTA -->
+        <tr>
+          <td style="background:#ffffff;padding:0 32px 32px;
+                     border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <table cellpadding="0" cellspacing="0" border="0" align="center" width="100%">
+              <tr>
+                <td align="center">
+                  <p style="margin:0 0 16px;font-size:13px;color:#64748b;text-align:center;">
+                    Your account is ready. Sign in with your registered mobile number.
+                  </p>
+                  <a href="https://tavrostechinfo.com/progym/login"
+                     style="display:inline-block;background:#1d4ed8;color:#ffffff;
+                            font-size:14px;font-weight:700;text-decoration:none;
+                            padding:14px 40px;border-radius:8px;letter-spacing:0.3px;">
+                    &#128274;&nbsp;&nbsp;Login to ProGym App
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- GYM CONTACT -->
+        <tr>
+          <td style="background:#f8fafc;padding:22px 32px;text-align:center;
+                     border:1px solid #e2e8f0;border-top:none;">
+            <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#0f172a;">Pro Gym, Kolhapur</p>
+            <p style="margin:0 0 16px;font-size:12px;color:#64748b;">
+              &#128222;&nbsp;<a href="tel:+91{$phone}" style="color:#64748b;text-decoration:none;">{$phone}</a>
+            </p>
+            <table cellpadding="0" cellspacing="0" border="0" align="center">
+              <tr>
+                <td style="padding:0 5px;">
+                  <a href="https://www.facebook.com/progymkop" style="text-decoration:none;display:block;">
+                    <img src="https://img.icons8.com/color/48/facebook-new.png" alt="Facebook" width="36" height="36" style="display:block;border:0;">
+                  </a>
+                </td>
+                <td style="padding:0 5px;">
+                  <a href="https://www.instagram.com/progymkop/" style="text-decoration:none;display:block;">
+                    <img src="https://img.icons8.com/color/48/instagram-new.png" alt="Instagram" width="36" height="36" style="display:block;border:0;">
+                  </a>
+                </td>
+                <td style="padding:0 5px;">
+                  <a href="https://wa.me/{$wa}" style="text-decoration:none;display:block;">
+                    <img src="https://img.icons8.com/color/48/whatsapp.png" alt="WhatsApp" width="36" height="36" style="display:block;border:0;">
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- DEVELOPER FOOTER -->
+        <tr>
+          <td style="background:#0f172a;border-radius:0 0 16px 16px;padding:18px 32px;text-align:center;">
+            <p style="margin:0 0 10px;font-size:10px;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">
+              Software Developed By
+            </p>
+            <a href="https://tavrostechinfo.com/" style="display:inline-block;border:0;text-decoration:none;">
+              <img src="https://tavrostechinfo.com/PROGYM/brand/upgradePlan2_img52.jpg"
+                   alt="Tavros Tech Info" width="140"
+                   style="display:block;width:140px;height:auto;border:0;border-radius:6px;opacity:0.9;">
+            </a>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+HTML;
+    }
+}

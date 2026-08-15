@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ea580c" />
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('progym_auth');
+        if (!raw) {
+          var m = document.cookie.match(/(?:^|; )progym_member_session=([^;]*)/);
+          if (m) raw = decodeURIComponent(m[1]);
+        }
+        if (!raw) return;
+        var auth = JSON.parse(raw);
+        if (!auth || !auth.role) return;
+        var dest = auth.role === 'admin' ? '/dashboard' : '/member-dashboard';
+        window.location.replace(dest);
+      } catch (e) { /* stay on landing */ }
+    })();
+  </script>
+  <title>ProGym Kolhapur — Train. Track. Transform.</title>
+  <meta name="description" content="ProGym is Kolhapur's modern fitness destination in Kalamba — personal training, cardio, strength, diet plans, Zumba and steam. Open 6 AM – 10 PM." />
+  <link rel="icon" type="image/jpeg" href="/logo/progym.jpg" />
+  <link rel="shortcut icon" href="/logo/progym.jpg" />
+  <link rel="apple-touch-icon" href="/logo/progym.jpg" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="ProGym" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    html,body { margin:0; padding:0; }
+    body {
+      font-family: 'Inter', -apple-system, Segoe UI, Roboto, sans-serif;
+      color: #0f172a;
+      background: #fff8f3;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.55;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    h1,h2,h3,h4 { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+
+    .container { max-width: 1160px; margin: 0 auto; padding: 0 22px; }
+
+    /* Nav */
+    .nav {
+      position: sticky; top: 0; z-index: 60;
+      background: rgba(255,248,243,0.82);
+      backdrop-filter: saturate(180%) blur(14px);
+      -webkit-backdrop-filter: saturate(180%) blur(14px);
+      border-bottom: 1px solid rgba(253,230,211,0.7);
+    }
+    .nav-inner { display:flex; align-items:center; justify-content:space-between; padding: 14px 0; gap: 16px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:800; font-size:20px; letter-spacing:-0.02em; }
+    .brand-mark {
+      width:42px; height:42px; border-radius:12px;
+      background: #fff; border: 1px solid #fde6d3;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 6px 14px -6px rgba(234,88,12,.35);
+      overflow: hidden;
+    }
+    .brand-mark img { width: 34px; height: 34px; object-fit: contain; }
+    .brand-sub { display:block; font-size:11px; font-weight:600; color:#9a3412; letter-spacing:0.14em; text-transform:uppercase; margin-top:-2px; }
+
+    .nav-links { display:flex; align-items:center; gap:28px; font-size:14.5px; font-weight:600; color:#334155; }
+    .nav-links a { position:relative; padding: 6px 0; transition: color .15s ease; }
+    .nav-links a:hover { color:#ea580c; }
+    .nav-links a::after {
+      content:""; position:absolute; left:0; right:0; bottom:-2px; height:2px;
+      background: linear-gradient(90deg,#ea580c,#f97316);
+      transform: scaleX(0); transform-origin: left; transition: transform .2s ease;
+      border-radius: 2px;
+    }
+    .nav-links a:hover::after { transform: scaleX(1); }
+
+    .nav-actions { display:flex; align-items:center; gap:10px; }
+    .nav-cta {
+      background: linear-gradient(135deg,#ea580c,#f97316); color:#fff;
+      padding:11px 20px; border-radius:999px;
+      font-weight:700; font-size:14px;
+      box-shadow: 0 10px 22px -10px rgba(234,88,12,.7);
+      transition: transform .12s ease, box-shadow .12s ease;
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 14px 26px -10px rgba(234,88,12,.75); }
+
+    .burger {
+      display:none; width:42px; height:42px; border-radius:12px;
+      background:#fff; border:1px solid #fde6d3;
+      align-items:center; justify-content:center; cursor:pointer;
+    }
+    .burger span { display:block; width:18px; height:2px; background:#0f172a; position:relative; transition: transform .2s ease; }
+    .burger span::before, .burger span::after {
+      content:""; position:absolute; left:0; width:18px; height:2px; background:#0f172a; transition: transform .2s ease, top .2s ease;
+    }
+    .burger span::before { top:-6px; }
+    .burger span::after  { top: 6px; }
+    body.menu-open .burger span { background: transparent; }
+    body.menu-open .burger span::before { top:0; transform: rotate(45deg); }
+    body.menu-open .burger span::after  { top:0; transform: rotate(-45deg); }
+
+    .mobile-panel {
+      position: fixed; top: 70px; left: 0; right: 0; bottom: 0;
+      z-index: 70;
+      background: #fff8f3;
+      transform: translateY(-8px); opacity: 0; pointer-events: none;
+      transition: transform .2s ease, opacity .2s ease;
+      padding: 20px 22px 28px;
+      overflow-y: auto;
+      display: none;
+    }
+    body.menu-open .mobile-panel { display: block; transform: translateY(0); opacity: 1; pointer-events: auto; }
+    body.menu-open { overflow: hidden; }
+    .mobile-panel a {
+      display:block; padding: 18px 4px; font-size:18px; font-weight:700;
+      border-bottom: 1px solid rgba(253,230,211,0.9);
+      color: #0f172a;
+    }
+    .mobile-panel a.mob-login {
+      margin-top: 22px; text-align:center; border:none;
+      background: linear-gradient(135deg,#ea580c,#f97316); color:#fff;
+      border-radius: 14px; padding: 18px;
+      box-shadow: 0 10px 22px -10px rgba(234,88,12,.6);
+      font-size: 17px;
+    }
+
+    @media (max-width: 860px) {
+      .nav-links { display:none; }
+      .nav-cta { display:none; }
+      .burger { display:flex; }
+    }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      padding: 68px 0 84px;
+      overflow: hidden;
+    }
+    .hero::before {
+      content:""; position:absolute; inset:0;
+      background:
+        radial-gradient(900px 500px at 82% -10%, rgba(249,115,22,0.20), transparent 60%),
+        radial-gradient(700px 500px at -10% 30%, rgba(234,88,12,0.10), transparent 60%),
+        radial-gradient(500px 300px at 50% 100%, rgba(252,211,77,0.12), transparent 60%);
+      pointer-events:none;
+    }
+    .hero-grid {
+      position:relative;
+      display:grid; grid-template-columns: 1.15fr 1fr; gap: 50px; align-items:center;
+    }
+    @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; gap: 40px; } }
+
+    .eyebrow {
+      display:inline-flex; align-items:center; gap:10px;
+      background:#fff; border:1px solid #fed7aa;
+      color:#9a3412; padding:8px 14px; border-radius:999px;
+      font-weight:600; font-size:13px;
+    }
+    .dot { width:8px; height:8px; border-radius:50%; background:#ea580c; box-shadow: 0 0 0 4px rgba(234,88,12,0.18); animation: pulse 2.2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{ box-shadow:0 0 0 4px rgba(234,88,12,0.18);} 50%{ box-shadow:0 0 0 8px rgba(234,88,12,0.08);} }
+
+    h1 {
+      font-size: clamp(38px, 6.2vw, 68px);
+      line-height: 1.02;
+      letter-spacing:-0.035em;
+      margin: 20px 0 18px;
+      font-weight: 800;
+    }
+    h1 .accent {
+      background: linear-gradient(135deg,#ea580c,#f97316 60%,#fbbf24);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .lede { font-size: clamp(16px, 2vw, 18.5px); color:#475569; max-width: 560px; }
+
+    .cta-row { display:flex; gap:12px; flex-wrap:wrap; margin-top: 30px; }
+    .btn {
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 15px 24px; border-radius:14px; font-weight:700; font-size:15px;
+      transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg,#ea580c,#f97316); color:#fff;
+      box-shadow: 0 12px 26px -10px rgba(234,88,12,.7);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -10px rgba(234,88,12,.8); }
+    .btn-ghost {
+      background:#fff; color:#0f172a; border:1px solid #e2e8f0;
+    }
+    .btn-ghost:hover { border-color:#fdba74; }
+
+    /* Hero visual (logo card) */
+    .hero-visual {
+      position: relative;
+      justify-self: center;
+      width: 100%;
+      max-width: 420px;
+      aspect-ratio: 1;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .hero-blob {
+      position:absolute; inset: 4%;
+      background: linear-gradient(135deg, #ea580c 0%, #f97316 45%, #fbbf24 100%);
+      border-radius: 42% 58% 62% 38% / 42% 44% 56% 58%;
+      filter: blur(2px); opacity: .95;
+      animation: morph 12s ease-in-out infinite;
+      box-shadow: 0 40px 80px -30px rgba(234,88,12,.55);
+    }
+    @keyframes morph {
+      0%,100% { border-radius: 42% 58% 62% 38% / 42% 44% 56% 58%; transform: rotate(0deg); }
+      50%     { border-radius: 58% 42% 38% 62% / 56% 62% 38% 44%; transform: rotate(6deg); }
+    }
+    .hero-logo-card {
+      position: relative;
+      width: 62%; aspect-ratio: 1;
+      background:#fff; border-radius: 30px;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 30px 60px -20px rgba(15,23,42,.25);
+      padding: 28px;
+    }
+    .hero-logo-card img { width: 100%; height:100%; object-fit: contain; }
+    .badge {
+      position:absolute; background:#fff; border:1px solid #fde6d3;
+      border-radius: 16px; padding: 10px 14px;
+      box-shadow: 0 14px 30px -14px rgba(15,23,42,.2);
+      display:flex; align-items:center; gap:10px;
+      font-weight:700; font-size:13px;
+    }
+    .badge-emoji { font-size:18px; }
+    .badge.b1 { top: 6%; left: -4%; }
+    .badge.b2 { bottom: 10%; right: -6%; }
+    .badge.b3 { bottom: -2%; left: 18%; }
+
+    /* Stats strip */
+    .stats {
+      display:grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+      margin-top: 60px;
+      background:#fff; border:1px solid #fde6d3; border-radius:20px; overflow:hidden;
+      box-shadow: 0 20px 40px -24px rgba(234,88,12,.25);
+    }
+    .stat { padding: 22px 18px; text-align:center; border-right: 1px solid #fde6d3; }
+    .stat:last-child { border-right: none; }
+    .stat-num { font-family:'Space Grotesk',sans-serif; font-size: clamp(24px, 3.4vw, 34px); font-weight:800; letter-spacing:-0.02em;
+                background: linear-gradient(135deg,#ea580c,#f97316); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .stat-lbl { font-size: 11.5px; color:#64748b; text-transform: uppercase; letter-spacing:0.1em; font-weight:600; margin-top:4px; }
+    @media (max-width: 720px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stat:nth-child(2) { border-right:none; }
+      .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 1px solid #fde6d3; }
+    }
+
+    /* Section */
+    section { padding: 88px 0; }
+    .section-head { text-align:center; max-width: 720px; margin: 0 auto 48px; }
+    .section-eyebrow { font-size:12.5px; font-weight:700; color:#ea580c; text-transform:uppercase; letter-spacing:0.16em; }
+    .section-title { font-size: clamp(28px, 4.2vw, 44px); font-weight:800; letter-spacing:-0.025em; margin: 10px 0 14px; }
+    .section-sub { color:#475569; font-size: 17px; }
+
+    /* About */
+    .about-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items:center; }
+    @media (max-width: 860px) { .about-grid { grid-template-columns: 1fr; gap: 36px; } }
+    .about-copy p { color:#475569; font-size:16.5px; margin: 0 0 14px; }
+    .about-checks { display:grid; gap:12px; margin-top: 22px; }
+    .check { display:flex; align-items:center; gap:12px; font-weight:600; color:#0f172a; }
+    .check-icon {
+      width:24px; height:24px; border-radius:50%;
+      background: linear-gradient(135deg,#ea580c,#f97316); color:#fff;
+      display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;
+      flex-shrink: 0;
+    }
+    .about-visual {
+      position: relative; aspect-ratio: 4/3; border-radius: 24px;
+      background: linear-gradient(135deg,#fef3c7 0%, #fed7aa 60%, #fdba74 100%);
+      border: 1px solid #fde6d3;
+      display:flex; align-items:center; justify-content:center; overflow: hidden;
+    }
+    .about-visual::before {
+      content:""; position:absolute; inset:0;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.5), transparent 50%);
+    }
+    .about-visual .logo-wrap {
+      position:relative; width: 62%; aspect-ratio: 1;
+      background:#fff; border-radius: 24px; padding: 32px;
+      box-shadow: 0 30px 60px -20px rgba(234,88,12,.35);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .about-visual .logo-wrap img { width:100%; height:100%; object-fit: contain; }
+
+    /* Services */
+    .services-grid {
+      display:grid; gap:18px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    @media (max-width: 860px) { .services-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 540px) { .services-grid { grid-template-columns: 1fr; } }
+    .service {
+      position: relative;
+      background:#fff; border:1px solid #fde6d3; border-radius:20px;
+      padding: 26px; overflow: hidden;
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .service::after {
+      content:""; position:absolute; inset:0; border-radius:20px;
+      background: linear-gradient(135deg, rgba(234,88,12,0.06), transparent 60%);
+      opacity:0; transition: opacity .18s ease;
+      pointer-events:none;
+    }
+    .service:hover { transform: translateY(-4px); border-color:#fdba74; box-shadow: 0 22px 40px -22px rgba(234,88,12,.35); }
+    .service:hover::after { opacity: 1; }
+    .svc-icon {
+      width:52px; height:52px; border-radius:14px;
+      background: linear-gradient(135deg,#fff7ed,#ffedd5); color:#ea580c;
+      display:flex; align-items:center; justify-content:center;
+      margin-bottom: 18px;
+    }
+    .svc-icon svg { width: 26px; height:26px; }
+    .service h3 { margin:0 0 8px; font-size:19px; font-weight:700; letter-spacing:-0.01em; }
+    .service p { margin:0; color:#64748b; font-size:14.5px; line-height:1.55; }
+
+    /* Owner */
+    .owner-wrap { background: #fff; border:1px solid #fde6d3; border-radius: 28px; padding: 42px; box-shadow: 0 30px 60px -30px rgba(234,88,12,.25); }
+    .owner-grid { display:grid; grid-template-columns: 300px 1fr; gap: 40px; align-items:center; }
+    @media (max-width: 780px) { .owner-grid { grid-template-columns: 1fr; text-align:center; } .owner-wrap { padding: 32px 24px; } }
+    .owner-photo {
+      width: 300px; height: 300px; border-radius: 24px;
+      background: linear-gradient(135deg,#ea580c,#f97316 60%,#fbbf24);
+      display:flex; align-items:center; justify-content:center;
+      color:#fff; font-family:'Space Grotesk',sans-serif; font-size: 96px; font-weight:800;
+      box-shadow: 0 24px 50px -20px rgba(234,88,12,.6);
+      justify-self: center;
+      position:relative; overflow:hidden;
+    }
+    .owner-photo::after {
+      content:""; position:absolute; inset:0;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.35), transparent 55%);
+    }
+    .owner-tag { font-size: 12.5px; font-weight:700; color:#ea580c; text-transform:uppercase; letter-spacing:0.16em; }
+    .owner-name { font-size: clamp(28px, 3.4vw, 36px); font-weight:800; letter-spacing:-0.025em; margin: 8px 0 6px; }
+    .owner-role { color:#64748b; font-size:15.5px; font-weight:600; margin-bottom: 16px; }
+    .owner-bio { color:#475569; font-size:16px; margin: 0; }
+
+    /* Why */
+    .why-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; }
+    @media (max-width: 860px) { .why-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .why-grid { grid-template-columns: 1fr; } }
+    .why {
+      padding: 26px 22px; border-radius: 18px;
+      background: linear-gradient(180deg, #fff 0%, #fff8f3 100%);
+      border: 1px solid #fde6d3;
+    }
+    .why-num {
+      font-family:'Space Grotesk',sans-serif; font-size: 32px; font-weight:800;
+      background: linear-gradient(135deg,#ea580c,#f97316); -webkit-background-clip:text; background-clip:text; color:transparent;
+      letter-spacing:-0.02em;
+    }
+    .why h4 { margin: 4px 0 6px; font-size: 17px; font-weight:700; letter-spacing:-0.01em; }
+    .why p { margin:0; color:#64748b; font-size:14px; line-height:1.55; }
+
+    /* WC banner */
+    .wc-banner {
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+      color:#fff;
+      border-radius: 24px;
+      padding: 36px;
+      position: relative; overflow: hidden;
+    }
+    .wc-banner::before {
+      content:""; position:absolute; right:-60px; top:-60px;
+      width: 260px; height:260px; border-radius:50%;
+      background: radial-gradient(circle, rgba(252,211,77,0.35), transparent 60%);
+    }
+    .wc-inner { position:relative; display:grid; grid-template-columns: auto 1fr auto; gap: 26px; align-items:center; }
+    .wc-logo {
+      width: 100px; height: 100px; border-radius: 20px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(252,211,77,0.35);
+      padding: 10px;
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink: 0;
+    }
+    .wc-logo img { width:100%; height:100%; object-fit: contain; }
+    .wc-tag {
+      display:inline-block; background: rgba(252,211,77,0.18);
+      color:#fcd34d; padding:6px 12px; border-radius:999px;
+      font-weight:700; font-size:11.5px; letter-spacing:0.1em; text-transform:uppercase;
+    }
+    .wc-banner h3 { font-size: clamp(20px, 3vw, 26px); margin: 12px 0 6px; font-weight:800; letter-spacing:-0.02em; }
+    .wc-banner p { margin: 0; color: rgba(255,255,255,0.85); max-width: 520px; font-size: 15px; }
+    .wc-btn {
+      background:#fcd34d; color:#064e3b;
+      padding: 13px 20px; border-radius: 12px; font-weight:800;
+      white-space: nowrap; align-self:center;
+      transition: transform .12s ease;
+    }
+    .wc-btn:hover { transform: translateY(-1px); }
+    @media (max-width: 780px) {
+      .wc-inner { grid-template-columns: 1fr; justify-items: start; }
+      .wc-banner { padding: 28px 22px; }
+      .wc-logo { width: 82px; height: 82px; border-radius: 18px; }
+    }
+
+    /* Contact */
+    .contact-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    @media (max-width: 860px) { .contact-grid { grid-template-columns: 1fr; } }
+    .contact-card {
+      background:#fff; border:1px solid #fde6d3; border-radius: 22px;
+      padding: 32px;
+    }
+    .contact-list { display:grid; gap: 22px; margin-top: 6px; }
+    .contact-item { display:flex; gap:16px; align-items:flex-start; }
+    .contact-icon {
+      width:44px; height:44px; border-radius:12px; flex-shrink:0;
+      background: linear-gradient(135deg,#fff7ed,#ffedd5); color:#ea580c;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .contact-icon svg { width:22px; height:22px; }
+    .contact-item h4 { font-size:12.5px; color:#94a3b8; margin:0 0 4px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; }
+    .contact-item p, .contact-item a { font-size:16px; color:#0f172a; font-weight:600; margin:0; }
+    .contact-item a:hover { color:#ea580c; }
+    .map-wrap {
+      border-radius: 22px; overflow: hidden;
+      border:1px solid #fde6d3;
+      min-height: 340px; height: 100%;
+      background: #fef3c7;
+    }
+    .map-wrap iframe { width:100%; height:100%; min-height: 340px; border:0; display:block; }
+
+    .contact-cta {
+      margin-top: 26px; padding-top: 24px; border-top: 1px dashed #fde6d3;
+      display:flex; gap:12px; flex-wrap: wrap;
+    }
+
+    /* Footer */
+    footer {
+      border-top:1px solid #fde6d3;
+      padding: 34px 0;
+      color:#64748b; font-size: 14px;
+      background: #fffaf5;
+    }
+    .footer-inner { display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:center; }
+    .footer-brand { display:flex; align-items:center; gap: 10px; font-weight:800; color:#0f172a; }
+    .footer-brand .brand-mark { width:32px; height:32px; }
+    .footer-brand .brand-mark img { width:24px; height:24px; }
+
+    /* Floating action buttons */
+    .fab-stack {
+      position: fixed; right: 18px; bottom: 18px; z-index: 80;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .fab {
+      width: 56px; height: 56px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; box-shadow: 0 12px 26px -8px rgba(0,0,0,.35);
+      transition: transform .15s ease, box-shadow .15s ease;
+      position: relative;
+    }
+    .fab:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 16px 32px -10px rgba(0,0,0,.4); }
+    .fab svg { width: 28px; height: 28px; }
+    .fab-wa { background: #25d366; }
+    .fab-wa::before {
+      content: ""; position: absolute; inset: -6px; border-radius: 50%;
+      background: rgba(37,211,102,.35); z-index:-1;
+      animation: ring 2s ease-out infinite;
+    }
+    @keyframes ring {
+      0%   { transform: scale(1);   opacity: .55; }
+      100% { transform: scale(1.6); opacity: 0;   }
+    }
+    .fab-call { background: linear-gradient(135deg,#1d4ed8,#3b82f6); }
+    .fab-label {
+      position: absolute; right: 68px; top: 50%; transform: translateY(-50%);
+      background: #0f172a; color:#fff; padding: 8px 12px; border-radius: 10px;
+      font-size: 12.5px; font-weight: 700; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .15s ease;
+      box-shadow: 0 6px 14px -4px rgba(0,0,0,.3);
+    }
+    .fab-label::after {
+      content:""; position: absolute; right: -4px; top: 50%; transform: translateY(-50%) rotate(45deg);
+      width: 8px; height: 8px; background: #0f172a;
+    }
+    .fab:hover .fab-label { opacity: 1; transform: translateY(-50%) translateX(-2px); }
+    @media (max-width: 640px) {
+      .fab-stack { right: 14px; bottom: 14px; gap: 10px; }
+      .fab { width: 52px; height: 52px; }
+      .fab svg { width: 26px; height: 26px; }
+      .fab-label { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fab-wa::before { animation: none; }
+    }
+
+    /* Install banner */
+    .install-banner {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 85;
+      background: #0f172a; color: #fff;
+      padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 -12px 28px -8px rgba(0,0,0,.3);
+      transform: translateY(110%); transition: transform .3s cubic-bezier(.2,.9,.3,1);
+    }
+    .install-banner.show { transform: translateY(0); }
+    body.install-banner-visible .fab-stack { bottom: 96px; }
+    .install-icon {
+      width: 46px; height: 46px; border-radius: 12px;
+      background: #fff; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .install-icon img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+    .install-text { flex: 1; min-width: 0; }
+    .install-text b { display: block; font-size: 14.5px; font-weight: 700; line-height: 1.2; }
+    .install-text span { display: block; font-size: 12.5px; opacity: .75; margin-top: 2px; }
+    .install-btn {
+      background: linear-gradient(135deg,#ea580c,#f97316); color: #fff;
+      border: 0; padding: 11px 18px; border-radius: 12px;
+      font-weight: 700; font-size: 14px; cursor: pointer; flex-shrink: 0;
+      box-shadow: 0 8px 18px -8px rgba(234,88,12,.7);
+      font-family: inherit;
+    }
+    .install-btn:active { transform: scale(0.97); }
+    .install-close {
+      background: transparent; border: 0; color: rgba(255,255,255,.55);
+      font-size: 26px; cursor: pointer; padding: 4px 8px;
+      line-height: 1; flex-shrink: 0; font-family: inherit;
+    }
+    .install-close:hover { color: #fff; }
+
+    /* iOS instruction sheet */
+    .ios-sheet {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,.55);
+      display: none; align-items: flex-end; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .ios-sheet.show { display: flex; }
+    .ios-sheet-inner {
+      background: #fff; width: 100%; max-width: 520px;
+      border-radius: 24px 24px 0 0;
+      padding: 28px 22px calc(28px + env(safe-area-inset-bottom));
+      text-align: center;
+      animation: sheetUp .32s cubic-bezier(.2,.9,.3,1);
+    }
+    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .ios-sheet h3 {
+      font-family: 'Space Grotesk',sans-serif; font-size: 22px;
+      margin: 0 0 6px; font-weight: 800; letter-spacing: -0.02em;
+    }
+    .ios-sheet .subtitle { font-size: 14.5px; color: #64748b; margin: 0 0 22px; }
+    .ios-step {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 4px; border-bottom: 1px solid #f1f5f9;
+      text-align: left;
+    }
+    .ios-step:last-of-type { border-bottom: 0; }
+    .ios-step-num {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg,#ea580c,#f97316); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px; flex-shrink: 0;
+      font-family: 'Space Grotesk',sans-serif;
+    }
+    .ios-step-txt { font-size: 14.5px; color: #334155; line-height: 1.5; }
+    .ios-step-txt b { font-weight: 700; color: #0f172a; }
+    .ios-share-icon {
+      display: inline-flex; vertical-align: -4px; margin: 0 3px;
+      color: #0084ff;
+    }
+    .ios-tabs {
+      display: flex; gap: 8px; margin: 0 0 6px;
+    }
+    .ios-tab {
+      flex: 1; padding: 12px 10px; border-radius: 12px;
+      background: #f8fafc; border: 2px solid transparent;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 14px; font-weight: 700; color: #64748b; cursor: pointer;
+      font-family: inherit;
+      transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+    }
+    .ios-tab:hover { background: #f1f5f9; }
+    .ios-tab.active {
+      background: #fff;
+      border-color: #ea580c;
+      color: #0f172a;
+      box-shadow: 0 6px 14px -6px rgba(234,88,12,.35);
+    }
+    .ios-tab-icon { width: 22px; height: 22px; flex-shrink: 0; }
+    .ios-panel { display: none; text-align: left; }
+    .ios-panel.active { display: block; }
+    .ios-sheet-close {
+      margin-top: 20px; background: #f1f5f9; color: #0f172a; border: 0;
+      padding: 14px 40px; border-radius: 12px;
+      font-weight: 700; font-size: 15px; cursor: pointer; font-family: inherit;
+    }
+
+    /* Reveal */
+    .reveal { opacity:0; transform: translateY(20px); transition: opacity .7s ease, transform .7s ease; }
+    .reveal.in { opacity:1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity:1; transform:none; transition:none; }
+      .hero-blob { animation:none; }
+      .dot { animation:none; }
+      html { scroll-behavior:auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="#top" class="brand">
+        <div class="brand-mark"><img src="/logo/progym.jpg" alt="ProGym logo" /></div>
+        <div>
+          ProGym
+          <span class="brand-sub">Kalamba · Kolhapur</span>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="#about">About</a>
+        <a href="#services">Services</a>
+        <a href="#trainer">Trainer</a>
+        <a href="#contact">Contact</a>
+      </div>
+      <div class="nav-actions">
+        <a class="nav-cta" href="https://progym.co.in/login">
+          Login
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        </a>
+        <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('menu-open')"><span></span></button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="mobile-panel">
+    <a href="#about" onclick="document.body.classList.remove('menu-open')">About</a>
+    <a href="#services" onclick="document.body.classList.remove('menu-open')">Services</a>
+    <a href="#trainer" onclick="document.body.classList.remove('menu-open')">Trainer</a>
+    <a href="#contact" onclick="document.body.classList.remove('menu-open')">Contact</a>
+    <a class="mob-login" href="https://progym.co.in/login">Member Login →</a>
+  </div>
+
+  <header class="hero" id="top">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow reveal"><span class="dot"></span> Kolhapur's modern fitness destination</span>
+          <h1 class="reveal">Train stronger. <span class="accent">Live better.</span></h1>
+          <p class="lede reveal">ProGym is where Kolhapur trains — modern equipment, expert coaching, and a complete fitness ecosystem in the heart of Kalamba. Personal training, cardio, strength, diet plans, Zumba and steam — all under one roof.</p>
+
+          <div class="cta-row reveal">
+            <a class="btn btn-primary" href="#contact">
+              Join Now
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+            <a class="btn btn-ghost" href="#services">See what we offer</a>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal">
+          <div class="hero-blob"></div>
+          <div class="hero-logo-card"><img src="/logo/progym.jpg" alt="ProGym" /></div>
+          <div class="badge b1"><span class="badge-emoji">💪</span> Personal Training</div>
+          <div class="badge b2"><span class="badge-emoji">🥗</span> Diet Plans</div>
+          <div class="badge b3"><span class="badge-emoji">🔥</span> Zumba</div>
+        </div>
+      </div>
+
+      <div class="stats reveal">
+        <div class="stat">
+          <div class="stat-num">6AM–10PM</div>
+          <div class="stat-lbl">Open Daily</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">6+</div>
+          <div class="stat-lbl">Services</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">1-on-1</div>
+          <div class="stat-lbl">Personal Coaching</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">100%</div>
+          <div class="stat-lbl">Members First</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="about">
+    <div class="container">
+      <div class="about-grid">
+        <div class="about-copy reveal">
+          <div class="section-eyebrow">About ProGym</div>
+          <h2 class="section-title" style="text-align:left;">More than a gym. A better version of you.</h2>
+          <p>At ProGym, we believe fitness isn't a phase — it's a lifestyle. Our Kalamba facility is built for people who want serious results without the intimidation of a typical gym.</p>
+          <p>From your very first workout, you get a tailored plan, expert eyes on your form, and a community that shows up every single day.</p>
+          <div class="about-checks">
+            <div class="check"><div class="check-icon">✓</div> Modern imported equipment</div>
+            <div class="check"><div class="check-icon">✓</div> Certified trainers with personal attention</div>
+            <div class="check"><div class="check-icon">✓</div> Customised diet and workout plans</div>
+            <div class="check"><div class="check-icon">✓</div> Clean, hygienic and spacious facility</div>
+          </div>
+        </div>
+        <div class="about-visual reveal">
+          <div class="logo-wrap"><img src="/logo/progym.jpg" alt="ProGym" /></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="services" style="background:linear-gradient(180deg,#fff8f3 0%, #fff 100%);">
+    <div class="container">
+      <div class="section-head reveal">
+        <div class="section-eyebrow">What we offer</div>
+        <h2 class="section-title">Every kind of workout, all in one place</h2>
+        <p class="section-sub">Whether you want to build muscle, burn fat, dance it out, or recover well — we've got the space, the gear, and the expertise.</p>
+      </div>
+
+      <div class="services-grid">
+        <div class="service reveal">
+          <div class="svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11"/><path d="M6.5 17.5h11"/><rect x="2" y="9" width="4" height="6" rx="1"/><rect x="18" y="9" width="4" height="6" rx="1"/><rect x="7" y="10.5" width="10" height="3" rx="0.5"/></svg></div>
+          <h3>Personal Training</h3>
+          <p>One-on-one coaching with certified trainers. Custom programs built around your body and your goals.</p>
+        </div>
+        <div class="service reveal">
+          <div class="svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+          <h3>Cardio</h3>
+          <p>Full range of treadmills, cycles, ellipticals and cross-trainers to burn fat and build stamina.</p>
+        </div>
+        <div class="service reveal">
+          <div class="svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h.01"/><path d="M18 18h.01"/><path d="m4 4 16 16"/><path d="M14 4v6h6"/><path d="M4 14h6v6"/></svg></div>
+          <h3>Strength Training</h3>
+          <p>Free weights, dumbbells, barbells, plate-loaded machines — everything you need to build serious strength.</p>
+        </div>
+        <div class="service reveal">
+          <div class="svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+          <h3>Diet Plans</h3>
+          <p>Personalised nutrition plans — up to 17 meal slots a day — designed around your goals, tastes and schedule.</p>
+        </div>
+        <div class="service reveal">
+          <div class="svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 14 4-8 4 8"/><path d="M8 14h8"/></svg></div>
+          <h3>Zumba</h3>
+          <p>High-energy dance workouts in a group setting. Great cardio, even greater vibes.</p>
+        </div>
+        <div class="service reveal">
+          <div class="svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/><path d="M3 13c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/><path d="M3 18c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/></svg></div>
+          <h3>Steam Bath</h3>
+          <p>Post-workout steam room for recovery, muscle relaxation, and detox after every intense session.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="trainer">
+    <div class="container">
+      <div class="section-head reveal">
+        <div class="section-eyebrow">Meet the trainer</div>
+        <h2 class="section-title">The man behind ProGym</h2>
+      </div>
+
+      <div class="owner-wrap reveal">
+        <div class="owner-grid">
+          <div class="owner-photo">PP</div>
+          <div>
+            <div class="owner-tag">Owner &amp; Head Trainer</div>
+            <h3 class="owner-name">Pranav Patil</h3>
+            <div class="owner-role">Certified Fitness Coach · Kolhapur</div>
+            <p class="owner-bio">Pranav founded ProGym with a simple mission — bring world-class fitness to Kolhapur, without the ego and without the excuses. With years of hands-on training experience, he personally guides members through their transformation journeys and leads the team of trainers here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="background: linear-gradient(180deg,#fff 0%, #fff8f3 100%);">
+    <div class="container">
+      <div class="section-head reveal">
+        <div class="section-eyebrow">Why ProGym</div>
+        <h2 class="section-title">Built for real results</h2>
+      </div>
+      <div class="why-grid">
+        <div class="why reveal">
+          <div class="why-num">01</div>
+          <h4>Modern equipment</h4>
+          <p>Latest machines, well-maintained free weights, and a spacious, hygienic floor.</p>
+        </div>
+        <div class="why reveal">
+          <div class="why-num">02</div>
+          <h4>Expert coaching</h4>
+          <p>Trainers who actually watch your form and correct you — not just count reps.</p>
+        </div>
+        <div class="why reveal">
+          <div class="why-num">03</div>
+          <h4>Personal plans</h4>
+          <p>No copy-paste programs. Your workout and diet are built for your body.</p>
+        </div>
+        <div class="why reveal">
+          <div class="why-num">04</div>
+          <h4>Member app</h4>
+          <p>Track workouts, diet, attendance and earn ProCoin rewards from your phone.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0;">
+    <div class="container">
+      <div class="wc-banner reveal">
+        <div class="wc-inner">
+          <div class="wc-logo"><img src="/logo/fifa.png" alt="FIFA World Cup 2026" /></div>
+          <div>
+            <span class="wc-tag">Bonus for members</span>
+            <h3>ProGym World Cup 2026 Prediction Game</h3>
+            <p>Predict every FIFA World Cup 2026 match. Climb the leaderboard. Earn ProCoins you can redeem in the gym.</p>
+          </div>
+          <a class="wc-btn" href="/wc2026/">Play now →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" style="background: #fff;">
+    <div class="container">
+      <div class="section-head reveal">
+        <div class="section-eyebrow">Visit us</div>
+        <h2 class="section-title">Come train with us in Kalamba</h2>
+        <p class="section-sub">Walk-ins welcome. Drop by for a tour, meet the trainers, and start your journey today.</p>
+      </div>
+
+      <div class="contact-grid">
+        <div class="contact-card reveal">
+          <div class="contact-list">
+            <div class="contact-item">
+              <div class="contact-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+              <div>
+                <h4>Address</h4>
+                <p><a href="https://maps.app.goo.gl/1yUTWHC2xxjfa7fL7" target="_blank" rel="noopener">ProGym, Kalamba<br/>Kolhapur, Maharashtra</a></p>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+              <div>
+                <h4>Email</h4>
+                <p><a href="mailto:progymkop@gmail.com">progymkop@gmail.com</a></p>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div>
+                <h4>Opening hours</h4>
+                <p>Every day · 6:00 AM – 10:00 PM</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="contact-cta">
+            <a class="btn btn-primary" href="mailto:progymkop@gmail.com">
+              Email us
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+            <a class="btn btn-ghost" href="https://progym.co.in/login">Member Login</a>
+          </div>
+        </div>
+
+        <div class="map-wrap reveal">
+          <iframe src="https://www.google.com/maps?q=Pro+Gym+Kalamba+Kolhapur&ll=16.6611179,74.2054349&z=17&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="ProGym Kalamba Kolhapur"></iframe>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="install-banner" id="installBanner">
+    <div class="install-icon"><img src="/logo/progym.jpg" alt="" /></div>
+    <div class="install-text">
+      <b>Get the ProGym app</b>
+      <span>Add to home screen — one tap access</span>
+    </div>
+    <button class="install-btn" id="installBtn" type="button">Install</button>
+    <button class="install-close" id="installClose" type="button" aria-label="Dismiss">&times;</button>
+  </div>
+
+  <div class="ios-sheet" id="iosSheet" role="dialog" aria-modal="true">
+    <div class="ios-sheet-inner">
+      <h3>Install ProGym</h3>
+      <p class="subtitle">Pick your browser to see the steps</p>
+
+      <div class="ios-tabs">
+        <button class="ios-tab" data-tab="safari" type="button">
+          <svg class="ios-tab-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#007AFF"/>
+            <circle cx="12" cy="12" r="7.5" fill="#E6F3FF"/>
+            <path d="M12 6.5 L13 11 L17.5 12 L11 11 Z" fill="#FF3B30"/>
+            <path d="M12 17.5 L11 13 L6.5 12 L13 13 Z" fill="#fff"/>
+            <circle cx="12" cy="12" r="0.9" fill="#333"/>
+          </svg>
+          Safari
+        </button>
+        <button class="ios-tab" data-tab="chrome" type="button">
+          <svg class="ios-tab-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#fff"/>
+            <path d="M12 2 A10 10 0 0 1 20.66 7 H12 A5 5 0 0 0 7.5 9.5 L4.5 4.5 A10 10 0 0 1 12 2 Z" fill="#EA4335"/>
+            <path d="M20.66 7 A10 10 0 0 1 18 20 L14.5 13.5 A5 5 0 0 0 16.5 8 L20.66 7 Z" fill="#FBBC05"/>
+            <path d="M3.34 7 A10 10 0 0 0 12 22 L14.5 15.5 A5 5 0 0 1 7.5 14.5 L3.34 7 Z" fill="#34A853"/>
+            <circle cx="12" cy="12" r="4" fill="#4285F4"/>
+          </svg>
+          Chrome
+        </button>
+      </div>
+
+      <div class="ios-panel" data-panel="safari">
+        <div class="ios-step">
+          <div class="ios-step-num">1</div>
+          <div class="ios-step-txt">Tap the <b>Share</b> icon
+            <svg class="ios-share-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="m7 8 5-5 5 5"/><path d="M20 21H4a1 1 0 0 1-1-1v-8"/></svg>
+            in Safari's bottom toolbar
+          </div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-num">2</div>
+          <div class="ios-step-txt">Scroll and tap <b>"Add to Home Screen"</b></div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-num">3</div>
+          <div class="ios-step-txt">Tap <b>"Add"</b> in the top-right corner</div>
+        </div>
+      </div>
+
+      <div class="ios-panel" data-panel="chrome">
+        <div class="ios-step">
+          <div class="ios-step-num">1</div>
+          <div class="ios-step-txt">Tap the <b>Share</b> icon
+            <svg class="ios-share-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="m7 8 5-5 5 5"/><path d="M20 21H4a1 1 0 0 1-1-1v-8"/></svg>
+            in Chrome's address bar (or tap <b>⋯</b> menu → <b>Share</b>)
+          </div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-num">2</div>
+          <div class="ios-step-txt">Scroll and tap <b>"Add to Home Screen"</b></div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-num">3</div>
+          <div class="ios-step-txt">Tap <b>"Add"</b> in the top-right corner</div>
+        </div>
+      </div>
+
+      <button class="ios-sheet-close" id="iosSheetClose" type="button">Got it</button>
+    </div>
+  </div>
+
+  <div class="fab-stack">
+    <a class="fab fab-wa" href="https://wa.me/918796655176?text=Hi%20ProGym%2C%20I%27d%20like%20to%20know%20more%20about%20membership." target="_blank" rel="noopener" aria-label="WhatsApp us">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+      <span class="fab-label">Chat on WhatsApp</span>
+    </a>
+    <a class="fab fab-call" href="tel:+918796655176" aria-label="Call us">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span class="fab-label">Call +91 87966 55176</span>
+    </a>
+  </div>
+
+  <footer>
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <div class="brand-mark"><img src="/logo/progym.jpg" alt="ProGym" /></div>
+        <span>ProGym Kolhapur</span>
+      </div>
+      <div>© <span id="yr"></span> ProGym. All rights reserved.</div>
+      <div><a href="/wc2026/">World Cup 2026 Game</a></div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    // Close mobile menu on link click (fallback for anchor clicks)
+    document.querySelectorAll('.mobile-panel a').forEach(a => {
+      a.addEventListener('click', () => document.body.classList.remove('menu-open'));
+    });
+
+    // Reveal on scroll
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // Register service worker (satisfies PWA install criteria)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+
+    // Install-to-home-screen flow
+    (function () {
+      var DISMISS_KEY = 'progym_install_dismissed';
+      var DISMISS_DAYS = 7;
+
+      var ua = navigator.userAgent;
+      var qs = window.location.search;
+      var forceShow = /[?&](debug|installhint)=1\b/.test(qs);
+
+      var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone === true;
+
+      // Detect iOS (including iPad on iOS 13+ that reports as Mac with touch)
+      var isIOS = /iPhone|iPad|iPod/i.test(ua) ||
+                  (/Macintosh/i.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1);
+      var isAndroid = /Android/i.test(ua);
+      var isMobile = isIOS || isAndroid;
+
+      console.log('[ProGym install]', { isMobile: isMobile, isIOS: isIOS, isAndroid: isAndroid, isStandalone: isStandalone, ua: ua });
+
+      if (!forceShow) {
+        if (isStandalone) return;
+        var dismissedAt = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
+        if (dismissedAt && (Date.now() - dismissedAt) < DISMISS_DAYS * 864e5) return;
+        if (!isMobile) return;
+      }
+
+      var banner = document.getElementById('installBanner');
+      var installBtn = document.getElementById('installBtn');
+      var closeBtn = document.getElementById('installClose');
+      var iosSheet = document.getElementById('iosSheet');
+      var iosSheetClose = document.getElementById('iosSheetClose');
+      var deferredPrompt = null;
+
+      function showBanner() {
+        banner.classList.add('show');
+        document.body.classList.add('install-banner-visible');
+      }
+      function hideBanner() {
+        banner.classList.remove('show');
+        document.body.classList.remove('install-banner-visible');
+      }
+      function dismiss() {
+        hideBanner();
+        localStorage.setItem(DISMISS_KEY, Date.now().toString());
+      }
+
+      // Android/Chrome: capture native install prompt
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        showBanner();
+      });
+
+      // iOS (any browser) or debug: show banner after short delay — Add-to-Home-Screen works from Safari
+      if (isIOS || forceShow) {
+        setTimeout(showBanner, forceShow ? 300 : 1500);
+      }
+
+      installBtn.addEventListener('click', function () {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(function (choice) {
+            deferredPrompt = null;
+            hideBanner();
+            if (choice.outcome !== 'accepted') {
+              localStorage.setItem(DISMISS_KEY, Date.now().toString());
+            }
+          });
+          return;
+        }
+        // iOS or Android without a deferred prompt (already dismissed / non-installable) → show instructions
+        iosSheet.classList.add('show');
+      });
+
+      closeBtn.addEventListener('click', dismiss);
+      iosSheetClose.addEventListener('click', function () {
+        iosSheet.classList.remove('show');
+        dismiss();
+      });
+      iosSheet.addEventListener('click', function (e) {
+        if (e.target === iosSheet) iosSheet.classList.remove('show');
+      });
+
+      // Tab switching + auto-select detected browser
+      var tabs = iosSheet.querySelectorAll('.ios-tab');
+      var panels = iosSheet.querySelectorAll('.ios-panel');
+      function selectTab(name) {
+        tabs.forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
+        panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-panel') === name); });
+      }
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () { selectTab(tab.getAttribute('data-tab')); });
+      });
+      selectTab(/CriOS/i.test(ua) ? 'chrome' : 'safari');
+
+      window.addEventListener('appinstalled', function () {
+        hideBanner();
+        localStorage.removeItem(DISMISS_KEY);
+      });
+    })();
+  </script>
+</body>
+</html>

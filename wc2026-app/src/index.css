@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode: any element under .dark (set on <html>) flips. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html, body, #root { height: 100%; }
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+@keyframes wc-confetti-fall {
+  0%   { transform: translateY(-8px) rotate(0deg);   opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translateY(36px) rotate(360deg); opacity: 0; }
+}
+.wc-confetti { animation: wc-confetti-fall 2.6s linear infinite; }
+
+@keyframes wc-trophy-pulse {
+  0%, 100% { transform: scale(1)   rotate(-3deg); }
+  50%      { transform: scale(1.18) rotate(3deg); }
+}
+.wc-trophy { animation: wc-trophy-pulse 1.6s ease-in-out infinite; display: inline-block; transform-origin: center; }
+
+@keyframes wc-shine {
+  0%   { background-position: -150% 0; }
+  100% { background-position:  250% 0; }
+}
+.wc-shine {
+  background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: wc-shine 2.4s linear infinite;
+}
+
+/* ============================================================
+   Dark theme overrides — Tailwind utilities reskinned in one place
+   so we don't need a `dark:` variant on every element. Specificity
+   of `.dark .xxx` beats the single-class utility, so these win
+   without !important.
+   ============================================================ */
+
+.dark body { background-color: #0a0f1c; color: #e5e7eb; }
+
+/* Surfaces */
+.dark .bg-white          { background-color: #111827; }
+.dark .bg-gray-50        { background-color: #0a0f1c; }
+.dark .bg-gray-100       { background-color: #1f2937; }
+.dark .bg-gray-200       { background-color: #374151; }
+.dark .bg-gray-900       { background-color: #020617; }
+
+/* Light tinted surfaces (badges, modals, accents) — keep tint, lower opacity */
+.dark .bg-blue-50        { background-color: rgba(59,130,246,0.14); }
+.dark .bg-blue-100       { background-color: rgba(59,130,246,0.20); }
+.dark .bg-indigo-50      { background-color: rgba(99,102,241,0.14); }
+.dark .bg-indigo-100     { background-color: rgba(99,102,241,0.20); }
+.dark .bg-amber-50       { background-color: rgba(245,158,11,0.14); }
+.dark .bg-amber-100      { background-color: rgba(245,158,11,0.20); }
+.dark .bg-red-50         { background-color: rgba(239,68,68,0.14); }
+.dark .bg-red-100        { background-color: rgba(239,68,68,0.20); }
+.dark .bg-rose-50        { background-color: rgba(244,63,94,0.14); }
+.dark .bg-purple-50      { background-color: rgba(168,85,247,0.14); }
+.dark .bg-sky-50         { background-color: rgba(14,165,233,0.14); }
+.dark .bg-orange-50      { background-color: rgba(249,115,22,0.14); }
+.dark .bg-orange-100     { background-color: rgba(249,115,22,0.20); }
+
+/* Text — flip grays */
+.dark .text-gray-900     { color: #f3f4f6; }
+.dark .text-gray-800     { color: #e5e7eb; }
+.dark .text-gray-700     { color: #d1d5db; }
+.dark .text-gray-600     { color: #9ca3af; }
+.dark .text-gray-500     { color: #9ca3af; }
+.dark .text-gray-400     { color: #6b7280; }
+
+/* Text — brighten brand accents for readability on dark */
+.dark .text-blue-700     { color: #60a5fa; }
+.dark .text-blue-800     { color: #60a5fa; }
+.dark .text-indigo-700   { color: #818cf8; }
+.dark .text-indigo-800   { color: #818cf8; }
+.dark .text-amber-700    { color: #fbbf24; }
+.dark .text-amber-800    { color: #fbbf24; }
+.dark .text-red-700      { color: #f87171; }
+.dark .text-rose-700     { color: #fb7185; }
+.dark .text-purple-700   { color: #c084fc; }
+.dark .text-sky-700      { color: #38bdf8; }
+.dark .text-orange-700   { color: #fb923c; }
+
+/* Borders */
+.dark .border-gray-100   { border-color: #1f2937; }
+.dark .border-gray-200   { border-color: #374151; }
+.dark .border-gray-300   { border-color: #374151; }
+.dark .border-white      { border-color: rgba(255,255,255,0.06); }
+.dark .border-blue-100   { border-color: rgba(59,130,246,0.30); }
+.dark .border-blue-200   { border-color: rgba(59,130,246,0.40); }
+.dark .border-indigo-100 { border-color: rgba(99,102,241,0.30); }
+.dark .border-indigo-200 { border-color: rgba(99,102,241,0.40); }
+.dark .border-amber-200  { border-color: rgba(245,158,11,0.40); }
+.dark .border-red-200    { border-color: rgba(239,68,68,0.40); }
+
+/* Divides — used in lists */
+.dark .divide-gray-100 > * + * { border-color: #1f2937; }
+.dark .divide-gray-200 > * + * { border-color: #374151; }
+
+/* Inputs */
+.dark input, .dark textarea, .dark select {
+  background-color: #0f172a;
+  color: #e5e7eb;
+  border-color: #374151;
+}
+.dark input::placeholder, .dark textarea::placeholder { color: #6b7280; }

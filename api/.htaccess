@@ -1,0 +1,32 @@
+# Auto-inject the license gate on every /api/*.php request.
+#
+# php_value auto_prepend_file requires an ABSOLUTE server path. The gym API
+# is deployed under tavrostechinfo.com/PROGYM/ggs/api/ on Hostinger, so the
+# absolute path to _prepend.php is what appears below.
+#
+# **CONFIRM THIS PATH ON THE SERVER BEFORE DEPLOYING** — via Hostinger file
+# manager, right-click _prepend.php after upload → Properties → copy path.
+# If the path differs from what's below, edit this line before re-uploading
+# the .htaccess.
+#
+# The prepend script handles OPTIONS preflight, whitelists license itself +
+# appcontrol + images, and fails open on internal errors — see _prepend.php.
+#
+# EMERGENCY UNBLOCK: comment out (prefix with #) the php_value line below,
+# save, and the gate is disabled instantly. Restores in a one-line edit.
+
+php_value auto_prepend_file "/home/u636480992/domains/tavrostechinfo.com/public_html/PROGYM/ggs/api/license/_prepend.php"
+
+# --- PHP error logging (always on, never displayed) -------------------------
+# Ensures silent 500s are captured to Hostinger's per-directory error_log.
+# The auto-prepended license/_prepend.php also installs a set_exception_handler
+# + register_shutdown_function that converts fatals into JSON responses.
+php_flag  display_errors off
+php_flag  log_errors     on
+php_value error_reporting 32767
+
+# Ensure PHP files are handled normally
+<Files ~ "\.php$">
+    Order allow,deny
+    Allow from all
+</Files>

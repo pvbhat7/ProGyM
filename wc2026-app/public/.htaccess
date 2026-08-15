@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteBase /wc2026/
+
+# Serve real files / directories as-is
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Otherwise hand off to the SPA so React Router can handle the path
+RewriteRule . index.html [L]

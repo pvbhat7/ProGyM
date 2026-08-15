@@ -1,0 +1,4 @@
+# Bare-root → /wc2026/  (only the literal "/" URL is redirected;
+# any other path like /wc2026/..., /logo/..., /awards is untouched)
+RewriteEngine On
+RewriteRule ^$ /wc2026/ [R=301,L]

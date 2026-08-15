@@ -1,0 +1,47 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.session
+*.session-journal
+*.pem
+*.key
+*firebase-adminsdk*.json
+secure_keys/
+_deploy_config.bat
+deploy_config.bat
+credentials.json
+secrets.json
+
+# Dependencies / virtualenvs
+node_modules/
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+vendor/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+target/
+
+# Temp / logs / IDE
+.tmp/
+tmp/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.claude/
+.dbscratch/
+
+# Windows-reserved filename accidentally present in repo root
+nul
