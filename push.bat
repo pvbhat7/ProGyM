@@ -36,16 +36,18 @@ if errorlevel 1 goto :fail
 
 echo.
 echo ================================================================
-echo  DONE. Changes uploaded to GitHub.
+echo   SUCCESS - changes uploaded to GitHub.
 echo ================================================================
 echo.
-timeout /t 5 >nul
+echo   Window will close in 5 seconds. Press any key to close now.
+choice /c XYZ /n /t 5 /d X >nul
 exit /b 0
 
 :fail
 echo.
 echo ================================================================
-echo  FAILED. See errors above.
+echo   FAILED - see errors above.
 echo ================================================================
+echo.
 pause
 exit /b 1
