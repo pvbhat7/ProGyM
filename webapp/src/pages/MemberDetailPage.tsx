@@ -14,7 +14,7 @@ interface ClientProfile {
   height: string; weight: string; photo: string; profileActiveFlag: string
   admissionDate: string; isPTClient: string; isGymClient: string
   creationSource: string; remarks: string; previousGym: string
-  adp: string; awp: string
+  adp: string; awp: string; reference: string
 }
 
 interface Transaction {
@@ -49,6 +49,7 @@ interface MemberDetail {
   weights: WeightEntry[]
   dietName: string | null
   workoutName: string | null
+  referredBy: { id: string; name: string } | null
 }
 
 interface EditFormState {
@@ -410,9 +411,10 @@ function PackageRow({
   pkg: PackageDetail
   clientName: string
   clientMobile: string
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
-  onPay: (id: string) => void
+  // Omitting a handler hides the corresponding button — used for the trainer's view-only membership tab.
+  onEdit?: (id: string) => void
+  onDelete?: (id: string) => void
+  onPay?: (id: string) => void
 }) {
   const [txExpanded, setTxExpanded] = useState(false)
   const fees = parseFloat(pkg.fees)
@@ -450,26 +452,24 @@ function PackageRow({
         <td className="px-2 py-2 pl-4 text-xs font-medium text-gray-800">{pkg.description || 'Package #' + pkg.id}</td>
         <td className="px-2 py-2 text-xs text-gray-600 whitespace-nowrap">{formatDate(pkg.startDate)}</td>
         <td className="px-2 py-2 text-xs text-gray-600 whitespace-nowrap">{formatDate(pkg.endDate)}</td>
-        <td className="px-2 py-2">
-          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${isDiscontinued ? 'bg-gray-100 text-gray-400' : pkg.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'}`}>
-            {isDiscontinued ? 'Stopped' : pkg.status}
-          </span>
-        </td>
         <td className="px-2 py-2 text-xs text-gray-800 text-right whitespace-nowrap">{inr(fees)}</td>
         <td className="px-2 py-2 text-xs text-gray-800 text-right whitespace-nowrap">{inr(paid)}</td>
         <td className="px-2 py-2 whitespace-nowrap">
-          {fees === 0 ? null : paid >= fees
-            ? <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Fully Paid</span>
-            : paid === 0
-              ? <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-red-100 text-red-500">Unpaid</span>
-              : <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-orange-100 text-orange-600">Partial</span>
+          {isDiscontinued
+            ? <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Stopped</span>
+            : fees === 0 ? null
+            : paid >= fees
+              ? <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Fully Paid</span>
+              : paid === 0
+                ? <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-red-100 text-red-500">Unpaid</span>
+                : <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-orange-100 text-orange-600">Partial</span>
           }
         </td>
         <td className="px-2 py-2 pr-4 whitespace-nowrap">
           <div className="flex items-center gap-1">
-            <button onClick={() => onEdit(pkg.id)} className="text-xs px-1.5 py-0.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">Edit</button>
-            <button onClick={() => onDelete(pkg.id)} className="text-xs px-1.5 py-0.5 rounded border border-red-100 text-red-400 hover:bg-red-50 transition-colors">Delete</button>
-            {hasPending && (
+            {onEdit && <button onClick={() => onEdit(pkg.id)} className="text-xs px-1.5 py-0.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">Edit</button>}
+            {onDelete && <button onClick={() => onDelete(pkg.id)} className="text-xs px-1.5 py-0.5 rounded border border-red-100 text-red-400 hover:bg-red-50 transition-colors">Delete</button>}
+            {onPay && hasPending && (
               <button onClick={() => onPay(pkg.id)} className="text-xs px-3 py-0.5 rounded border border-green-200 text-green-700 hover:bg-green-50 transition-colors">Pay</button>
             )}
             <button
@@ -483,7 +483,7 @@ function PackageRow({
       </tr>
       {txExpanded && (
         <tr className="bg-blue-50 border-b border-blue-100">
-          <td colSpan={8} className="px-4 py-3">
+          <td colSpan={7} className="px-4 py-3">
             {pkg.transactions.length === 0 ? (
               <p className="text-xs text-gray-400 italic">No transactions recorded.</p>
             ) : (
@@ -1467,6 +1467,7 @@ export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const isTrainer = user?.role === 'trainer'
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [data, setData] = useState<MemberDetail | null>(null)
@@ -1940,13 +1941,19 @@ export default function MemberDetailPage() {
 
 
 
-  const TABS: { key: Tab; label: string; badge?: number }[] = [
-    { key: 'profile', label: 'Profile' },
-    { key: 'memberships', label: 'Memberships', badge: packages.length },
-    { key: 'attendance', label: 'Attendance', badge: attendance.length },
-    { key: 'weight', label: 'Weight', badge: weights.length },
-    { key: 'workout', label: 'Workouts' },
-  ]
+  const TABS: { key: Tab; label: string; badge?: number }[] = isTrainer
+    ? [
+        // Trainer: view-only membership + full-CRUD workout. Other tabs hidden entirely.
+        { key: 'memberships', label: 'Memberships', badge: packages.length },
+        { key: 'workout', label: 'Workouts' },
+      ]
+    : [
+        { key: 'profile', label: 'Profile' },
+        { key: 'memberships', label: 'Memberships', badge: packages.length },
+        { key: 'attendance', label: 'Attendance', badge: attendance.length },
+        { key: 'weight', label: 'Weight', badge: weights.length },
+        { key: 'workout', label: 'Workouts' },
+      ]
 
   // Current photo for display in edit mode
   const editPhotoUrl = photoPreview ?? photoUrl
@@ -2023,7 +2030,7 @@ export default function MemberDetailPage() {
           <div className="flex-1 min-w-0 flex flex-col justify-between h-36">
             <div>
               <p className="font-bold text-gray-800 text-xl leading-tight truncate">{client.name}</p>
-              <p className="text-sm text-gray-500 mt-0.5">+91 {client.mobile}</p>
+              {!isTrainer && <p className="text-sm text-gray-500 mt-0.5">+91 {client.mobile}</p>}
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {client.gender && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium capitalize">{client.gender}</span>
@@ -2054,7 +2061,8 @@ export default function MemberDetailPage() {
         </div>
       </div>
 
-      {/* Reminder panels — collapsible */}
+      {/* Reminder panels — collapsible (hidden for trainer) */}
+      {!isTrainer && (
       <div className="bg-slate-50 border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 py-3">
           <button
@@ -2126,6 +2134,7 @@ export default function MemberDetailPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Tab bar */}
       <div className="bg-white border-b border-gray-100 sticky top-[57px] z-10">
@@ -2394,6 +2403,17 @@ export default function MemberDetailPage() {
                   <InfoRow label="Blood Group" value={client.bloodGroup?.replace('_', '+').replace('minus', '-')} />
                   <InfoRow label="Address" value={client.address} />
                   <InfoRow label="Occupation" value={client.occupation} />
+                  {data.referredBy && (
+                    <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0">
+                      <span className="text-xs text-gray-400 w-28 flex-shrink-0 mt-0.5">Referred by</span>
+                      <button
+                        onClick={() => navigate(`/members/${data.referredBy!.id}`)}
+                        className="text-sm text-orange-600 hover:text-orange-700 hover:underline font-medium text-left flex-1"
+                      >
+                        {data.referredBy.name}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-2">
@@ -2418,14 +2438,16 @@ export default function MemberDetailPage() {
         {/* ── Memberships ── */}
         {tab === 'memberships' && (
           <div className="-mx-4">
-            <div className="flex gap-2 mb-3 px-4">
-              <button onClick={handleAddPackage} className="flex-1 py-2 text-sm font-medium bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
-                + Add Package
-              </button>
-              <button onClick={handleRenewPackage} className="flex-1 py-2 text-sm font-medium border border-orange-400 text-orange-500 rounded-lg hover:bg-orange-50 transition-colors">
-                Renew Package
-              </button>
-            </div>
+            {!isTrainer && (
+              <div className="flex gap-2 mb-3 px-4">
+                <button onClick={handleAddPackage} className="flex-1 py-2 text-sm font-medium bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                  + Add Package
+                </button>
+                <button onClick={handleRenewPackage} className="flex-1 py-2 text-sm font-medium border border-orange-400 text-orange-500 rounded-lg hover:bg-orange-50 transition-colors">
+                  Renew Package
+                </button>
+              </div>
+            )}
             <div className="bg-white border-y border-gray-100 shadow-sm overflow-x-auto">
               <table className="min-w-full text-left border-collapse">
                 <thead>
@@ -2433,17 +2455,16 @@ export default function MemberDetailPage() {
                     <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide pl-4">Package</th>
                     <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Start Date</th>
                     <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">End Date</th>
-                    <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Status</th>
                     <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right whitespace-nowrap">Fees</th>
                     <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right whitespace-nowrap">Collected</th>
-                    <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Payment</th>
+                    <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Status</th>
                     <th className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap pr-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {packages.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-10 text-gray-400">
+                      <td colSpan={7} className="text-center py-10 text-gray-400">
                         <p className="text-3xl mb-2">📦</p>
                         <p className="font-semibold text-gray-600 text-sm">No package history</p>
                       </td>
@@ -2454,9 +2475,9 @@ export default function MemberDetailPage() {
                       pkg={pkg}
                       clientName={data?.client?.name || ''}
                       clientMobile={data?.client?.mobile || ''}
-                      onEdit={requestEdit}
-                      onDelete={requestDelete}
-                      onPay={requestPay}
+                      onEdit={isTrainer ? undefined : requestEdit}
+                      onDelete={isTrainer ? undefined : requestDelete}
+                      onPay={isTrainer ? undefined : requestPay}
                     />
                   ))}
                 </tbody>

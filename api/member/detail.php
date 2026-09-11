@@ -15,7 +15,7 @@
         SELECT id, name, mobile, email, gender, birthDate, address,
                bloodGroup, occupation, height, weight, photo,
                profileActiveFlag, admissionDate, isPTClient, isGymClient,
-               creationSource, remarks, previousGym, adp, awp
+               creationSource, remarks, previousGym, adp, awp, reference
         FROM client WHERE id = ? LIMIT 1
     ");
     $stmt->execute([$id]);
@@ -91,6 +91,15 @@
         $workoutName = $row ? $row['name'] : null;
     }
 
+    // 7. Referred-by client (name + id) if reference stored
+    $referredBy = null;
+    if (!empty($client['reference']) && is_numeric($client['reference'])) {
+        $s = $db->prepare("SELECT id, name FROM client WHERE id = ? LIMIT 1");
+        $s->execute([intval($client['reference'])]);
+        $row = $s->fetch(PDO::FETCH_ASSOC);
+        if ($row) $referredBy = ["id" => $row['id'], "name" => $row['name']];
+    }
+
     echo json_encode([
         "client"          => $client,
         "packages"        => $packages,
@@ -100,5 +109,6 @@
         "weights"         => $weights,
         "dietName"        => $dietName,
         "workoutName"     => $workoutName,
+        "referredBy"      => $referredBy,
     ]);
 ?>

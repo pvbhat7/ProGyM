@@ -25,7 +25,15 @@ function clearMemberCookie(): void {
   document.cookie = `${COOKIE_KEY}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict`
 }
 
-export type UserRole = 'admin' | 'member'
+export type UserRole = 'admin' | 'member' | 'trainer'
+
+// Hardcoded trainer client id — auto-promoted from 'member' at login time.
+// Extend this list (or replace with a DB flag) when there are more than one.
+const TRAINER_CLIENT_IDS: ReadonlySet<number> = new Set([1408])
+
+export function isTrainerClientId(userId: number | null | undefined): boolean {
+  return userId != null && TRAINER_CLIENT_IDS.has(userId)
+}
 
 export interface AuthUser {
   mobile: string
@@ -58,19 +66,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           stored = cookie
         }
       }
-      return stored ? JSON.parse(stored) : null
+      if (!stored) return null
+      const parsed = JSON.parse(stored) as AuthUser
+      // Rehydrate existing sessions from before the trainer role existed.
+      if (parsed?.role === 'member' && isTrainerClientId(parsed.userId)) {
+        parsed.role = 'trainer'
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+      }
+      return parsed
     } catch { return null }
   })
   const [sessionWarning, setSessionWarning] = useState(false)
 
   const login = (u: AuthUser) => {
-    const serialized = JSON.stringify(u)
+    // Auto-promote known trainer client ids so every login path (OTP, Google, cookie restore)
+    // resolves to the trainer role without each caller having to know.
+    const resolved: AuthUser = u.role === 'member' && isTrainerClientId(u.userId)
+      ? { ...u, role: 'trainer' }
+      : u
+    const serialized = JSON.stringify(resolved)
     localStorage.setItem(STORAGE_KEY, serialized)
-    if (u.role === 'member') {
+    if (resolved.role === 'member' || resolved.role === 'trainer') {
       setMemberCookie(serialized) // 30-day backup so mobile browsers can't silently log the user out
     }
     touchActivity()
-    setUser(u)
+    setUser(resolved)
     setSessionWarning(false)
   }
 

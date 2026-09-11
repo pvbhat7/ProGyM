@@ -56,12 +56,23 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Same admin pages but also open to trainers — used only by /members and /members/:id
+// so the trainer can see the members list and detail page (in a restricted view).
+function AdminOrTrainerRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuth()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (isTabDashboardMobile(user?.mobile)) return <Navigate to="/tab" replace />
+  if (user?.role !== 'admin' && user?.role !== 'trainer') return <Navigate to="/member-dashboard" replace />
+  return <>{children}</>
+}
+
 function MemberRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth()
   const location = useLocation()
   if (!isAuthenticated) return <Navigate to="/login" state={{ next: location.pathname }} replace />
   if (isTabDashboardMobile(user?.mobile)) return <Navigate to="/tab" replace />
-  if (user?.role !== 'member') return <Navigate to="/dashboard" replace />
+  // Trainer shares the member portal — dashboard, profile, packages etc. all stay accessible to them.
+  if (user?.role !== 'member' && user?.role !== 'trainer') return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
@@ -100,9 +111,9 @@ function AppRoutes() {
       {/* Admin routes */}
       <Route path="/dashboard"        element={<AdminRoute><DashboardPage /></AdminRoute>} />
       <Route path="/admin-panel"       element={<DeviceAccessGate><AdminPanelPage /></DeviceAccessGate>} />
-      <Route path="/members"          element={<AdminRoute><MembersPage /></AdminRoute>} />
+      <Route path="/members"          element={<AdminOrTrainerRoute><MembersPage /></AdminOrTrainerRoute>} />
       <Route path="/members/new"      element={<AddClientPage />} />
-      <Route path="/members/:id"      element={<AdminRoute><MemberDetailPage /></AdminRoute>} />
+      <Route path="/members/:id"      element={<AdminOrTrainerRoute><MemberDetailPage /></AdminOrTrainerRoute>} />
       <Route path="/packages"         element={<AdminRoute><PackagesPage /></AdminRoute>} />
       <Route path="/attendance"       element={<AttendancePage />} />
       <Route path="/roles"            element={<AdminRoute><RolesPage /></AdminRoute>} />

@@ -4,6 +4,37 @@ import { useNavigate } from 'react-router-dom'
 import { API_BASE, MEDIA_BASE } from '../api/config'
 
 type Exercise = { name: string; gifFilePath: string; muscle: string }
+type WorkoutType = { id: string; name: string; discontinue?: string }
+
+const MUSCLE_SUFFIX_RE = /\s-\s(CHEST|BICEPS|TRICEPS|SHOULDER|BACK|LEGS)$/i
+const DAY_SUFFIX_RE = /\s-\s(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/i
+
+function isParentType(name: string): boolean {
+  return !MUSCLE_SUFFIX_RE.test(name) && !DAY_SUFFIX_RE.test(name)
+}
+
+function muscleFromTypeName(name: string): string {
+  const m = name.match(MUSCLE_SUFFIX_RE)
+  return m ? m[1].toLowerCase() : ''
+}
+
+const PROGRAM_STYLE: Record<string, { gradient: string; short: string }> = {
+  'Single Muscle - 1': { gradient: 'from-red-500    to-orange-500', short: 'S1' },
+  'Single Muscle - 2': { gradient: 'from-orange-500 to-amber-500',  short: 'S2' },
+  'Single Muscle - 3': { gradient: 'from-amber-500  to-yellow-500', short: 'S3' },
+  'Double Muscle - 1': { gradient: 'from-blue-500   to-cyan-500',   short: 'D1' },
+  'Double Muscle - 2': { gradient: 'from-cyan-500   to-teal-500',   short: 'D2' },
+  'Double Muscle - 3': { gradient: 'from-teal-500   to-emerald-500', short: 'D3' },
+  'Mixed Workout':     { gradient: 'from-violet-500 to-purple-500', short: 'MX' },
+  'Mixed Workout 2':   { gradient: 'from-purple-500 to-fuchsia-500', short: 'M2' },
+  'Ladies Level - 1':  { gradient: 'from-pink-500   to-rose-500',   short: 'L1' },
+  'Ladies Level - 2':  { gradient: 'from-rose-500   to-red-400',    short: 'L2' },
+  'Ladies Level - 3':  { gradient: 'from-fuchsia-500 to-pink-500',  short: 'L3' },
+}
+
+function programStyle(name: string) {
+  return PROGRAM_STYLE[name] ?? { gradient: 'from-gray-500 to-gray-400', short: name.slice(0, 2).toUpperCase() }
+}
 
 const MUSCLE_CONFIG: Record<string, { gradient: string; label: string }> = {
   chest:     { gradient: 'from-red-500    to-orange-400',   label: 'Chest'     },
@@ -200,6 +231,11 @@ export default function WorkoutsPage() {
   const [error, setError]         = useState(false)
   const [selectedMuscle, setSelected] = useState<string>('')
 
+  const [allTypes, setAllTypes]           = useState<WorkoutType[]>([])
+  const [selectedProgram, setProgram]     = useState<string>('')
+  const [programExercises, setProgramEx]  = useState<Exercise[]>([])
+  const [programLoading, setProgramLoad]  = useState(false)
+
   useEffect(() => {
     fetch(`${API_BASE}/t_workoutsubtype/getAllDistinct.php`)
       .then(r => r.json())
@@ -217,25 +253,100 @@ export default function WorkoutsPage() {
       .catch(() => { setError(true); setLoading(false) })
   }, [])
 
+  useEffect(() => {
+    fetch(`${API_BASE}/t_workoutmaintype/getAll.php`)
+      .then(r => r.json())
+      .then(d => {
+        const list: WorkoutType[] = Array.isArray(d)
+          ? d.filter((t: WorkoutType) => t && t.name && t.discontinue !== 'true')
+          : []
+        setAllTypes(list)
+      })
+      .catch(() => {})
+  }, [])
+
+  const programs = useMemo(
+    () => allTypes.filter(t => isParentType(t.name)),
+    [allTypes]
+  )
+
+  useEffect(() => {
+    if (!selectedProgram) {
+      setProgramEx([])
+      return
+    }
+    const parent = allTypes.find(t => t.id === selectedProgram)
+    if (!parent) return
+
+    const related = allTypes.filter(t =>
+      t.id === parent.id || t.name.startsWith(parent.name + ' - ')
+    )
+
+    setProgramLoad(true)
+    Promise.all(
+      related.map(t =>
+        fetch(`${API_BASE}/t_workoutsubtype/getAllByMainTypeId.php?mtid=${t.id}`)
+          .then(r => r.json())
+          .then((rows: any[]) => {
+            const inferred = muscleFromTypeName(t.name)
+            return (Array.isArray(rows) ? rows : []).map(r => ({
+              name: r.name,
+              gifFilePath: r.gifFilePath,
+              muscle: (r.muscle && r.muscle.trim()) || inferred,
+            })) as Exercise[]
+          })
+          .catch(() => [] as Exercise[])
+      )
+    )
+      .then(chunks => {
+        const merged = chunks.flat().filter(e => e && e.name)
+        const seen = new Set<string>()
+        const unique = merged.filter(e => {
+          const k = `${e.name}|${e.muscle}`
+          if (seen.has(k)) return false
+          seen.add(k)
+          return true
+        })
+        setProgramEx(unique)
+        setProgramLoad(false)
+        if (unique.length > 0) {
+          const firstMuscle = unique.find(e => e.muscle)?.muscle
+          if (firstMuscle && !unique.some(e => e.muscle === selectedMuscle)) {
+            setSelected(firstMuscle)
+          }
+        }
+      })
+      .catch(() => { setProgramLoad(false) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProgram, allTypes])
+
+  const sourceExercises = selectedProgram ? programExercises : exercises
+
   const muscles = useMemo(() =>
-    [...new Set(exercises.map(e => e.muscle).filter(Boolean))], [exercises])
+    [...new Set(sourceExercises.map(e => e.muscle).filter(Boolean))],
+    [sourceExercises])
 
   const filtered = useMemo(() =>
     selectedMuscle
-      ? exercises.filter(e => e.muscle === selectedMuscle)
-      : exercises,
-    [exercises, selectedMuscle])
+      ? sourceExercises.filter(e => e.muscle === selectedMuscle)
+      : sourceExercises,
+    [sourceExercises, selectedMuscle])
+
+  const selectedProgramName = programs.find(p => p.id === selectedProgram)?.name ?? ''
+  const listLoading = loading || programLoading
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
             <h1 className="font-bold text-gray-800 text-lg leading-tight">Workouts</h1>
-            {!loading && selectedMuscle && (
-              <p className="text-xs text-gray-400 capitalize">
-                {filtered.length} exercises · {selectedMuscle}
+            {!listLoading && (selectedMuscle || selectedProgramName) && (
+              <p className="text-xs text-gray-400 capitalize truncate">
+                {filtered.length} exercises
+                {selectedMuscle ? ` · ${selectedMuscle}` : ''}
+                {selectedProgramName ? ` · ${selectedProgramName}` : ''}
               </p>
             )}
           </div>
@@ -248,81 +359,139 @@ export default function WorkoutsPage() {
         </div>
       </header>
 
-      {/* Muscle category scroll */}
-      <div className="bg-white border-b border-gray-100 sticky top-[57px] z-10">
-        {loading ? (
-          <div className="flex gap-3 px-4 py-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-2xl animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          <div className="flex gap-3 px-4 py-3 w-max mx-auto">
-            {muscles.map(muscle => {
-              const cfg = muscleConfig(muscle)
-              const active = selectedMuscle === muscle
-              return (
-                <button
-                  key={muscle}
-                  onClick={() => setSelected(muscle)}
-                  className={`flex-shrink-0 flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-2xl border-2 transition-all ${
-                    active
-                      ? 'border-gray-800 bg-gray-900 shadow-md scale-105'
-                      : 'border-transparent bg-gray-50 hover:bg-gray-100'
-                  }`}
-                >
-                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center shadow-sm`}>
-                    <MuscleIcon muscle={muscle} />
-                  </div>
-                  <span className={`text-xs font-semibold capitalize ${active ? 'text-white' : 'text-gray-600'}`}>
-                    {cfg.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-          </div>
-        )}
-      </div>
-
-      {/* Exercise grid */}
-      <main className="max-w-5xl mx-auto px-4 py-4 pb-8">
-        {loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
-                <div className="px-3 pt-3 pb-1.5">
-                  <div className="h-4 bg-gray-200 rounded w-3/4" />
-                </div>
-                <div className="aspect-video mx-2 mb-2 bg-gray-100 rounded-xl" />
+      <div className="max-w-7xl mx-auto flex">
+        {/* LEFT: muscle tabs + exercise grid */}
+        <div className="flex-1 min-w-0">
+          {/* Muscle category scroll */}
+          <div className="bg-white border-b border-gray-100 sticky top-[57px] z-10">
+            {listLoading ? (
+              <div className="flex gap-3 px-4 py-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-2xl animate-pulse" />
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              <div className="flex gap-3 px-4 py-3 w-max mx-auto">
+                {muscles.map(muscle => {
+                  const cfg = muscleConfig(muscle)
+                  const active = selectedMuscle === muscle
+                  return (
+                    <button
+                      key={muscle}
+                      onClick={() => setSelected(muscle)}
+                      className={`flex-shrink-0 flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-2xl border-2 transition-all ${
+                        active
+                          ? 'border-gray-800 bg-gray-900 shadow-md scale-105'
+                          : 'border-transparent bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center shadow-sm`}>
+                        <MuscleIcon muscle={muscle} />
+                      </div>
+                      <span className={`text-xs font-semibold capitalize ${active ? 'text-white' : 'text-gray-600'}`}>
+                        {cfg.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              </div>
+            )}
           </div>
-        )}
 
-        {!loading && error && (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-5xl mb-3">😕</p>
-            <p className="font-semibold text-gray-600">Could not load workouts</p>
-          </div>
-        )}
+          {/* Exercise grid */}
+          <main className="px-4 py-4 pb-8">
+            {listLoading && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
+                    <div className="px-3 pt-3 pb-1.5">
+                      <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    </div>
+                    <div className="aspect-video mx-2 mb-2 bg-gray-100 rounded-xl" />
+                  </div>
+                ))}
+              </div>
+            )}
 
-        {!loading && !error && filtered.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-5xl mb-3">🏋️</p>
-            <p className="font-semibold text-gray-600">No exercises found</p>
-          </div>
-        )}
+            {!listLoading && error && (
+              <div className="text-center py-16 text-gray-400">
+                <p className="text-5xl mb-3">😕</p>
+                <p className="font-semibold text-gray-600">Could not load workouts</p>
+              </div>
+            )}
 
-        {!loading && !error && filtered.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {filtered.map((exercise, i) => (
-              <ExerciseCard key={`${exercise.name}-${i}`} exercise={exercise} />
-            ))}
+            {!listLoading && !error && filtered.length === 0 && (
+              <div className="text-center py-16 text-gray-400">
+                <p className="text-5xl mb-3">🏋️</p>
+                <p className="font-semibold text-gray-600">No exercises found</p>
+              </div>
+            )}
+
+            {!listLoading && !error && filtered.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {filtered.map((exercise, i) => (
+                  <ExerciseCard key={`${exercise.name}-${i}`} exercise={exercise} />
+                ))}
+              </div>
+            )}
+          </main>
+        </div>
+
+        {/* RIGHT: workout program vertical menu */}
+        <aside className="w-32 sm:w-44 md:w-52 flex-shrink-0 border-l border-gray-200 bg-white">
+          <div className="sticky top-[57px] max-h-[calc(100vh-57px)] overflow-y-auto">
+            <div className="px-3 py-3 border-b border-gray-100">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Programs</p>
+            </div>
+            <div className="p-2 space-y-1.5">
+              <button
+                onClick={() => setProgram('')}
+                className={`w-full flex items-center gap-2 px-2 py-2 rounded-xl border-2 transition-all text-left ${
+                  !selectedProgram
+                    ? 'border-gray-800 bg-gray-900 shadow-sm'
+                    : 'border-transparent bg-gray-50 hover:bg-gray-100'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-500 to-gray-500 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-[10px] font-bold">ALL</span>
+                </div>
+                <span className={`text-xs font-semibold leading-tight ${!selectedProgram ? 'text-white' : 'text-gray-700'}`}>
+                  All exercises
+                </span>
+              </button>
+
+              {programs.map(p => {
+                const style = programStyle(p.name)
+                const active = selectedProgram === p.id
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setProgram(p.id)}
+                    className={`w-full flex items-center gap-2 px-2 py-2 rounded-xl border-2 transition-all text-left ${
+                      active
+                        ? 'border-gray-800 bg-gray-900 shadow-sm'
+                        : 'border-transparent bg-gray-50 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${style.gradient} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                      <span className="text-white text-[10px] font-bold">{style.short}</span>
+                    </div>
+                    <span className={`text-xs font-semibold leading-tight ${active ? 'text-white' : 'text-gray-700'}`}>
+                      {p.name}
+                    </span>
+                  </button>
+                )
+              })}
+
+              {programs.length === 0 && !loading && (
+                <div className="p-2 text-[11px] text-gray-400">No programs</div>
+              )}
+            </div>
           </div>
-        )}
-      </main>
+        </aside>
+      </div>
     </div>
   )
 }

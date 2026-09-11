@@ -11,16 +11,17 @@ type StatVal = number | 'err' | null
 
 type AttendeeRow = {
   id: number
-  cid: number
+  cid: string
   clientName: string
   timeStamp: string
   date: string
 }
 
 type ClientRow = {
-  id: number
+  id: string
   name: string
   gender: string
+  photo?: string
 }
 
 type CollectionRow = {
@@ -85,6 +86,76 @@ function todayFormatted() {
   return new Date().toLocaleDateString('en-IN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
+}
+
+function getPhotoUrl(photo?: string | null): string {
+  if (!photo) return ''
+  // DB photo fields have a Java-serialized history trail appended after the URL,
+  // e.g. "https://.../123 Name.png?599?Thu Jan 12 19:40:09 IST 2023?..." — keep only the URL part.
+  let s = photo.split('?')[0]
+  if (!s) return ''
+  // Force https so browsers don't block mixed content on the https progym.co.in site.
+  if (s.startsWith('http://')) s = 'https://' + s.slice(7)
+  if (s.startsWith('http')) return s
+  if (s.startsWith('/')) return `https://tavrostechinfo.com${s}`
+  return `https://tavrostechinfo.com/PROGYM/ggs/${s}`
+}
+
+function toDMY(d: Date): string {
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+}
+
+function last5Days(): string[] {
+  const out: string[] = []
+  const now = new Date(); now.setHours(0,0,0,0)
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(now); d.setDate(now.getDate() - i)
+    out.push(toDMY(d))
+  }
+  return out.reverse()
+}
+
+function calcDaysLeft(endDate?: string | null): number | null {
+  if (!endDate) return null
+  const p = endDate.split('/'); if (p.length !== 3) return null
+  const end = new Date(+p[2], +p[1] - 1, +p[0])
+  const now = new Date(); now.setHours(0,0,0,0)
+  return Math.ceil((end.getTime() - now.getTime()) / 86400000)
+}
+
+function zoneOf(days: number | null): 'green' | 'yellow' | 'red' | 'none' {
+  if (days === null) return 'none'
+  if (days > 5) return 'green'
+  if (days >= 0) return 'yellow'
+  return 'red'
+}
+
+const ZONE_PILL: Record<'green' | 'yellow' | 'red' | 'none', string> = {
+  green:  'bg-green-100 text-green-700 border-green-200',
+  yellow: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  red:    'bg-red-100 text-red-700 border-red-200',
+  none:   'bg-gray-100 text-gray-500 border-gray-200',
+}
+
+function AttendeeAvatar({ name, photo }: { name: string; photo?: string }) {
+  const [err, setErr] = useState(false)
+  const url = getPhotoUrl(photo)
+  const initials = name?.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+  if (!url || err) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 shadow-sm">
+        {initials}
+      </div>
+    )
+  }
+  return (
+    <img
+      src={url}
+      alt={name}
+      onError={() => setErr(true)}
+      className="w-10 h-10 rounded-full object-cover flex-shrink-0 shadow-sm ring-2 ring-white"
+    />
+  )
 }
 
 function StatCard({
@@ -256,6 +327,8 @@ export default function DashboardPage() {
   const [showAttendanceModal, setShowAttendanceModal] = useState(false)
   const [attendees, setAttendees]             = useState<AttendeeRow[] | null>(null)
   const [attendeesLoading, setAttendeesLoading] = useState(false)
+  const [clientMeta, setClientMeta]           = useState<Map<string, { photo?: string; endDate?: string | null }>>(new Map())
+  const [attendanceHistory, setAttendanceHistory] = useState<Map<string, Set<string>>>(new Map())
 
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const [collectionTab, setCollectionTab]     = useState<CollectionTab>('monthly')
@@ -287,10 +360,45 @@ export default function DashboardPage() {
     setShowAttendanceModal(true)
     if (attendees !== null) return
     setAttendeesLoading(true)
-    fetch(`${API_BASE}/attendance/getAllbyDate.php?date=${encodeURIComponent(todayDDMMYYYY())}`)
-      .then(r => r.json())
-      .then((rows: AttendeeRow[]) => setAttendees(Array.isArray(rows) ? rows : []))
-      .catch(() => setAttendees([]))
+    const days = last5Days()
+    // Seed photos from activeClientList (which we already have; allActive.php returns photo).
+    // clientMemberStatPVO.clientPhoto is corrupted (?date?date... with no URL) so we ignore it.
+    const seed = new Map<string, { photo?: string; endDate?: string | null }>()
+    if (Array.isArray(activeClientList)) {
+      activeClientList.forEach(c => {
+        if (c.id != null) seed.set(String(c.id), { photo: c.photo || undefined })
+      })
+    }
+
+    Promise.all([
+      fetch(`${API_BASE}/attendance/getAllbyDate.php?date=${encodeURIComponent(todayDDMMYYYY())}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_BASE}/client/clientMemberStatPVO.php?profileActiveFlag=enable`).then(r => r.json()).catch(() => []),
+      fetch(`${API_BASE}/attendance/getLastTenDaysAttendance.php`).then(r => r.json()).catch(() => []),
+    ]).then(([todayRows, metaRows, historyRows]) => {
+      setAttendees(Array.isArray(todayRows) ? todayRows : [])
+
+      const m = new Map(seed)
+      if (Array.isArray(metaRows)) {
+        metaRows.forEach((r: { id?: string | number; endDate?: string | null }) => {
+          if (r.id == null) return
+          const key = String(r.id)
+          const existing = m.get(key) ?? {}
+          m.set(key, { ...existing, endDate: r.endDate ?? null })
+        })
+      }
+      setClientMeta(m)
+
+      if (Array.isArray(historyRows)) {
+        const map = new Map<string, Set<string>>()
+        historyRows.forEach((a: { cid?: string | number; date?: string }) => {
+          if (a.cid == null || !a.date || !days.includes(a.date)) return
+          const cid = String(a.cid)
+          if (!map.has(cid)) map.set(cid, new Set())
+          map.get(cid)!.add(a.date)
+        })
+        setAttendanceHistory(map)
+      }
+    }).catch(() => setAttendees([]))
       .finally(() => setAttendeesLoading(false))
   }
 
@@ -571,7 +679,7 @@ export default function DashboardPage() {
 
       {/* Attendance */}
       {showAttendanceModal && (
-        <ModalShell onClose={() => setShowAttendanceModal(false)}>
+        <ModalShell onClose={() => setShowAttendanceModal(false)} wide>
           <ModalHeader
             title="Today's Attendance"
             sub={todayDDMMYYYY()}
@@ -582,11 +690,12 @@ export default function DashboardPage() {
               <div className="space-y-3 py-2">
                 {[1,2,3,4].map(i => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
+                    <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
                     <div className="flex-1 space-y-1.5">
                       <div className="h-3.5 w-32 bg-gray-100 rounded animate-pulse" />
                       <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
                     </div>
+                    <div className="h-6 w-16 bg-gray-100 rounded-full animate-pulse" />
                   </div>
                 ))}
               </div>
@@ -608,16 +717,42 @@ export default function DashboardPage() {
                     return `${h}:${m} ${period}`
                   }
                   const timePart = rawTime ? fmtTime(rawTime) : ''
+                  const cidKey   = String(a.cid)
+                  const meta     = clientMeta.get(cidKey)
+                  const daysLeft = calcDaysLeft(meta?.endDate)
+                  const zone     = zoneOf(daysLeft)
+                  const attended = attendanceHistory.get(cidKey) ?? new Set<string>()
+                  const daysArr  = last5Days()
                   return (
                     <li key={a.id} className="flex items-center gap-3 py-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 shadow-sm">
-                        {i + 1}
-                      </div>
+                      <span className="w-5 text-right text-xs font-semibold text-gray-400 tabular-nums flex-shrink-0">{i + 1}</span>
+                      <AttendeeAvatar name={a.clientName} photo={meta?.photo} />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-800 text-sm truncate">{a.clientName}</p>
-                        {timePart && <p className="text-xs text-gray-400 mt-0.5">{timePart}</p>}
+                        <div className="flex items-center gap-2 mt-1">
+                          {timePart && <p className="text-xs text-gray-400">{timePart}</p>}
+                          {timePart && <span className="text-gray-200">·</span>}
+                          <div className="flex items-center gap-1" title="Last 5 days">
+                            {daysArr.map(day => (
+                              <span
+                                key={day}
+                                title={day}
+                                className={`w-2 h-2 rounded-full ${attended.has(day) ? 'bg-green-500' : 'bg-red-400'}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-emerald-500 text-lg">✓</span>
+                      <span
+                        title={meta?.endDate ? `Expires ${meta.endDate}` : 'No active package'}
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full border whitespace-nowrap flex-shrink-0 ${ZONE_PILL[zone]}`}
+                      >
+                        {daysLeft === null
+                          ? '—'
+                          : daysLeft < 0
+                          ? `Exp ${Math.abs(daysLeft)}d`
+                          : `${daysLeft}d left`}
+                      </span>
                     </li>
                   )
                 })}

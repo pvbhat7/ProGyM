@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_BASE } from '../api/config'
+import { useAuth } from '../context/AuthContext'
 
 interface Member {
   id: string
@@ -110,6 +111,8 @@ function last10Days(): string[] {
 
 export default function MembersPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isTrainer = user?.role === 'trainer'
   const [members, setMembers]         = useState<Member[]>([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(false)
@@ -129,14 +132,42 @@ export default function MembersPage() {
   })
 
   useEffect(() => {
-    setLoading(true)
+    const membersKey    = `progym_members_${sourceFilter}`
+    const attendanceKey = 'progym_members_attendance'
+    const CACHE_TTL_MS  = 10 * 60 * 1000  // 10 min — fine for a session; background refetch keeps it current
+
+    let servedFromCache = false
+    try {
+      const cachedMembers = sessionStorage.getItem(membersKey)
+      if (cachedMembers) {
+        const { data, ts } = JSON.parse(cachedMembers) as { data: Member[]; ts: number }
+        if (Date.now() - ts < CACHE_TTL_MS && Array.isArray(data)) {
+          setMembers(data)
+          servedFromCache = true
+        }
+      }
+      const cachedAttendance = sessionStorage.getItem(attendanceKey)
+      if (cachedAttendance) {
+        const { data, ts } = JSON.parse(cachedAttendance) as { data: [string, string[]][]; ts: number }
+        if (Date.now() - ts < CACHE_TTL_MS && Array.isArray(data)) {
+          setAttendanceMap(new Map(data.map(([k, arr]) => [k, new Set(arr)])))
+        }
+      }
+    } catch { /* corrupted cache — ignore, fall through to network */ }
+
+    // Show table instantly from cache; only spin the loader on a true cold load.
+    setLoading(!servedFromCache)
     setError(false)
+
     const days = last10Days()
     Promise.all([
       fetch(`${API_BASE}/client/allWithPackages.php?source=${sourceFilter}`).then(r => r.json()),
       fetch(`${API_BASE}/attendance/getLastTenDaysAttendance.php`).then(r => r.json()).catch(() => []),
     ]).then(([clients, attendance]) => {
-      setMembers(Array.isArray(clients) ? clients : [])
+      const list = Array.isArray(clients) ? clients : []
+      setMembers(list)
+      try { sessionStorage.setItem(membersKey, JSON.stringify({ data: list, ts: Date.now() })) } catch {}
+
       if (Array.isArray(attendance)) {
         const map = new Map<string, Set<string>>()
         attendance.forEach((a: { cid?: string | number; date?: string }) => {
@@ -146,9 +177,16 @@ export default function MembersPage() {
           map.get(cid)!.add(a.date)
         })
         setAttendanceMap(map)
+        try {
+          const serial: [string, string[]][] = Array.from(map, ([k, v]) => [k, Array.from(v)])
+          sessionStorage.setItem(attendanceKey, JSON.stringify({ data: serial, ts: Date.now() }))
+        } catch {}
       }
       setLoading(false)
-    }).catch(() => { setError(true); setLoading(false) })
+    }).catch(() => {
+      if (!servedFromCache) setError(true)
+      setLoading(false)
+    })
   }, [sourceFilter])
 
   function saveReminded(memberId: string, channel: 'email' | 'sms' | 'wa') {
@@ -405,8 +443,9 @@ const duesCount = useMemo(() =>
                   <th className="px-4 py-3 text-center font-bold text-gray-800">Last 10d</th>
                   <th className="px-4 py-3 text-center font-bold text-gray-800">Payment Status</th>
                   <th className="px-4 py-3 text-center font-bold text-gray-800">Days Remaining</th>
-                  <th className="px-4 py-3 text-center font-bold text-gray-800">Reminder</th>
-                  <th className="px-4 py-3 text-center font-bold text-gray-800">Enable/Disable</th>
+                  {!isTrainer && <th className="px-4 py-3 text-center font-bold text-gray-800">Reminder</th>}
+                  {!isTrainer && <th className="px-4 py-3 text-center font-bold text-gray-800">Call</th>}
+                  {!isTrainer && <th className="px-4 py-3 text-center font-bold text-gray-800">Enable/Disable</th>}
                 </tr>
               </thead>
               <tbody>
@@ -488,6 +527,7 @@ const duesCount = useMemo(() =>
                       </td>
 
                       {/* Reminder Icons: Email / SMS / WhatsApp */}
+                      {!isTrainer && (
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
                           {/* Email */}
@@ -544,8 +584,24 @@ const duesCount = useMemo(() =>
                           </div>
                         </div>
                       </td>
+                      )}
+
+                      {/* Call */}
+                      {!isTrainer && (
+                      <td className="px-4 py-3 text-center">
+                        <a
+                          href={`tel:${m.mobile}`}
+                          onClick={e => e.stopPropagation()}
+                          title={`Call ${m.mobile}`}
+                          className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-sm"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.24.2 2.45.57 3.57a1 1 0 01-.24 1.02l-2.21 2.2z"/></svg>
+                        </a>
+                      </td>
+                      )}
 
                       {/* Enable / Disable */}
+                      {!isTrainer && (
                       <td className="px-4 py-3 text-center">
                         <button
                           onClick={e => toggleProfile(m, e)}
@@ -559,6 +615,7 @@ const duesCount = useMemo(() =>
                           {updating.has(m.id) ? '…' : m.profileActiveFlag === 'enable' ? 'Disable' : 'Enable'}
                         </button>
                       </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -566,6 +623,7 @@ const duesCount = useMemo(() =>
             </table>
           </div>
         )}
+
       </main>
     </div>
   )

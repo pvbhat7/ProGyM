@@ -224,7 +224,7 @@ export default function QuickAttendancePage() {
           Home
         </button>
 
-        <div className="w-full max-w-xs">
+        <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-6">
             <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3 shadow-lg shadow-violet-500/30">
@@ -246,12 +246,12 @@ export default function QuickAttendancePage() {
           )}
 
           {/* Numpad */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-4">
             {NUM_KEYS.map((k, i) => (
               <button key={i}
                 onClick={() => { if (k === '⌫') delDigit(); else if (k) addDigit(k) }}
                 disabled={!k}
-                className={`h-14 rounded-2xl text-2xl font-bold transition-all active:scale-90 ${
+                className={`h-20 rounded-2xl text-4xl font-bold transition-all active:scale-90 ${
                   !k ? 'invisible' :
                   k === '⌫' ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' :
                   'bg-white text-gray-900 hover:bg-gray-100 border border-gray-200 shadow-sm'
@@ -307,25 +307,33 @@ export default function QuickAttendancePage() {
 
         <div className="grid grid-cols-1 gap-4 mb-6">
           {/* Package remaining */}
-          {daysLeft !== null && (
-            <div className={`rounded-2xl p-4 flex items-center justify-center gap-3 border ${
-              daysLeft > 10 ? 'bg-green-50 border-green-200' :
-              daysLeft > 0  ? 'bg-yellow-50 border-yellow-200' :
-                              'bg-red-50 border-red-200'
-            }`}>
-              <span className="text-2xl">📦</span>
-              <div className="text-center">
-                <p className={`text-lg font-black ${daysLeft > 10 ? 'text-green-600' : daysLeft > 0 ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {daysLeft > 0 ? `${daysLeft} days remaining in current package` : `Package expired on ${pkgEndDate}`}
-                </p>
-                {(pkgStartDate || pkgEndDate) && (
-                  <p className="text-gray-500 text-xs mt-1">
-                    {pkgStartDate && `Start: ${pkgStartDate}`}{pkgStartDate && pkgEndDate && ' · '}{pkgEndDate && `End: ${pkgEndDate}`}
+          {daysLeft !== null && (() => {
+            const isCritical = daysLeft < 5   // blinking red when fewer than 5 days left (incl. expired)
+            const isWarn     = daysLeft >= 5 && daysLeft <= 10
+            const cardCls =
+              isCritical ? 'bg-red-50 border-red-300 animate-pulse' :
+              isWarn     ? 'bg-yellow-50 border-yellow-200'         :
+                           'bg-green-50 border-green-200'
+            const textCls =
+              isCritical ? 'text-red-600' :
+              isWarn     ? 'text-yellow-600' :
+                           'text-green-600'
+            return (
+              <div className={`rounded-2xl p-4 flex items-center justify-center gap-3 border ${cardCls}`}>
+                <span className="text-2xl">📦</span>
+                <div className="text-center">
+                  <p className={`text-lg font-black ${textCls}`}>
+                    {daysLeft > 0 ? `${daysLeft} days remaining in current package` : `Package expired on ${pkgEndDate}`}
                   </p>
-                )}
+                  {(pkgStartDate || pkgEndDate) && (
+                    <p className="text-gray-500 text-xs mt-1">
+                      {pkgStartDate && `Start: ${pkgStartDate}`}{pkgStartDate && pkgEndDate && ' · '}{pkgEndDate && `End: ${pkgEndDate}`}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Last 7 days attendance */}
           <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">

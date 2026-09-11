@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import NotificationBell from '../components/NotificationBell'
+import TodaysAttendanceCard from '../components/TodaysAttendanceCard'
 import { API_BASE } from '../api/config'
 
 const WC_SESSION_KEY = 'wc_session_v1'
@@ -90,7 +91,11 @@ export default function MemberDashboardPage() {
     accent?: 'wc'
   }
 
+  const isTrainer = user?.role === 'trainer'
+
   const memberLinks: MemberLink[] = [
+    // Trainer-only entry: opens the admin members list in a restricted view (columns + edits limited).
+    ...(isTrainer ? [{ label: 'Members', icon: '👥', desc: 'View gym members',      available: true,  path: '/members' } as MemberLink] : []),
     { label: 'My Profile',  icon: '👤', desc: 'Edit your profile info',    available: true,  path: '/member-profile' },
     { label: 'My Packages', icon: '📦', desc: 'Active & past packages',    available: true,  path: '/member-packages' },
     { label: 'Attendance',  icon: '📅', desc: 'My check-in history',       available: true,  path: '/member-attendance' },
@@ -159,6 +164,13 @@ export default function MemberDashboardPage() {
             🏃
           </div>
         </div>
+
+        {/* Today's Attendance — trainer only */}
+        {isTrainer && (
+          <div className="mb-6">
+            <TodaysAttendanceCard />
+          </div>
+        )}
 
         {/* Quick links */}
         <h3 className="text-base font-semibold text-gray-700 mb-3">My Portal</h3>

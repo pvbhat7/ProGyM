@@ -90,6 +90,25 @@
     $feesRow     = $feesStmt->fetch(PDO::FETCH_ASSOC);
     $packageFees = floatval($feesRow['fees'] ?? 0);
 
+    // Sync parent packagedetails.amountPaid + status from actual txn total.
+    // Some FE flows (notably the "Pay" button) previously left status stale — e.g. a
+    // package reached fully-paid after several partial payments but status remained
+    // 'partial-paid'. Deriving here makes every payment path self-heal.
+    if ($packageFees > 0) {
+        $derivedStatus = $totalPaid >= $packageFees ? 'fully-paid'
+                       : ($totalPaid > 0 ? 'partial-paid' : 'not paid');
+    } else {
+        $derivedStatus = $totalPaid > 0 ? 'fully-paid' : 'not paid';
+    }
+    $syncStmt = $db->prepare(
+        "UPDATE packagedetails SET amountPaid = :paid, status = :status WHERE id = :id"
+    );
+    $syncStmt->execute([
+        ':paid'   => $totalPaid,
+        ':status' => $derivedStatus,
+        ':id'     => intval($data->packageDetailsId),
+    ]);
+
     if ($packageFees > 0 && $totalPaid >= $packageFees) {
         $events             = new CoinCreditEvents($db);
         $events->clientId   = $data->clientId;
