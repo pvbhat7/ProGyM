@@ -37,6 +37,7 @@ import AdminWorldCupLeaderboardPage from './pages/AdminWorldCupLeaderboardPage'
 import AdminWorldCupBannersPage from './pages/AdminWorldCupBannersPage'
 import AdminWorldCupAwardsPage from './pages/AdminWorldCupAwardsPage'
 import CommunicationsPage from './pages/CommunicationsPage'
+import WhatsAppPage from './pages/WhatsAppPage'
 import DeviceAccessGate from './components/DeviceAccessGate'
 import AppLockGuard from './components/AppLockGuard'
 import { LicenseLockOverlay } from './components/LicenseLockOverlay'
@@ -46,7 +47,21 @@ import OverridePage from './pages/OverridePage'
 import { KILL_PATH, RESTORE_PATH } from './constants/secret'
 import { isTabDashboardMobile } from './constants/tabDashboard'
 import { installAudioPrewarm } from './utils/audioPrewarm'
+import { installPushMessageListener, syncPushToken } from './services/pushNotifications'
+import AdminPushPage from './pages/AdminPushPage'
+import PushPermissionSheet from './components/PushPermissionSheet'
 import './index.css'
+
+// Keeps the member's push token fresh and handles notification clicks while a tab is open.
+function PushBootstrap() {
+  const { user } = useAuth()
+  useEffect(() => installPushMessageListener(), [])
+  useEffect(() => {
+    if (user && (user.role === 'member' || user.role === 'trainer')) syncPushToken(user.userId)
+  }, [user])
+  // key: remount per user so a fresh login re-reads the permission state
+  return <PushPermissionSheet key={user?.userId ?? 0} />
+}
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth()
@@ -127,6 +142,8 @@ function AppRoutes() {
       <Route path="/admin-workouts"     element={<AdminRoute><AdminWorkoutsPage /></AdminRoute>} />
       <Route path="/admin-photo-review" element={<AdminRoute><AdminProfilePhotoReviewPage /></AdminRoute>} />
       <Route path="/communications"     element={<AdminRoute><CommunicationsPage /></AdminRoute>} />
+      <Route path="/whatsapp"           element={<AdminRoute><WhatsAppPage /></AdminRoute>} />
+      <Route path="/admin-push"         element={<AdminRoute><AdminPushPage /></AdminRoute>} />
       <Route path="/admin-worldcup-matches"     element={<AdminRoute><AdminWorldCupMatchesPage /></AdminRoute>} />
       <Route path="/admin-worldcup-leaderboard" element={<AdminRoute><AdminWorldCupLeaderboardPage /></AdminRoute>} />
       <Route path="/admin-worldcup-banners"     element={<AdminRoute><AdminWorldCupBannersPage /></AdminRoute>} />
@@ -170,6 +187,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <PushBootstrap />
       <LicenseProvider>
         <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
           <LicenseLockOverlay>

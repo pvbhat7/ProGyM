@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../api/config'
+import { enablePush, getPushStatus, PUSH_RECEIVED_EVENT } from '../services/pushNotifications'
+import type { PushStatus } from '../services/pushNotifications'
 
 type Notif = {
   id: string
@@ -10,6 +13,8 @@ type Notif = {
   amount: string
   isRead: string
   createdAt: string
+  image?: string | null
+  link?: string | null
 }
 
 const TYPE_ICON: Record<string, string> = {
@@ -19,6 +24,7 @@ const TYPE_ICON: Record<string, string> = {
   package:                '📦',
   merchandise_approved:   '✅',
   merchandise_rejected:   '❌',
+  broadcast:              '📢',
 }
 
 function formatTs(raw: string): string {
@@ -32,7 +38,7 @@ function formatTs(raw: string): string {
 
 export default function NotificationBell() {
   const { user } = useAuth()
-  const [open, setOpen]             = useState(false)
+  const [open, setOpen]             = useState(() => new URLSearchParams(window.location.search).get('notifications') === 'open')
   const [notifs, setNotifs]         = useState<Notif[]>([])
   const [unread, setUnread]         = useState(0)
   const [loading, setLoading]       = useState(false)
@@ -54,6 +60,37 @@ export default function NotificationBell() {
   }, [clientId])
 
   useEffect(() => { fetchNotifs() }, [fetchNotifs])
+
+  // Refetch when a push arrives while this page is open.
+  useEffect(() => {
+    window.addEventListener(PUSH_RECEIVED_EVENT, fetchNotifs)
+    return () => window.removeEventListener(PUSH_RECEIVED_EVENT, fetchNotifs)
+  }, [fetchNotifs])
+
+  // iPhone image pushes open the app with ?notifications=open (iOS can't show
+  // the image in the notification itself) — clean the URL once the panel is open.
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('notifications')) {
+      url.searchParams.delete('notifications')
+      window.history.replaceState(window.history.state, '', url.toString())
+    }
+  }, [])
+
+  const navigate = useNavigate()
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
+  useEffect(() => { getPushStatus().then(setPushStatus).catch(() => {}) }, [])
+
+  async function turnOnPush() {
+    if (!clientId) return
+    setPushStatus(await enablePush(clientId).catch(() => 'unsupported' as const))
+  }
+
+  function openLink(link: string) {
+    setOpen(false)
+    if (/^https:\/\//i.test(link)) window.open(link, '_blank', 'noopener')
+    else navigate(link)
+  }
 
   function openPanel() {
     setOpen(true)
@@ -113,6 +150,27 @@ export default function NotificationBell() {
           </button>
         </div>
 
+        {/* Push opt-in */}
+        {pushStatus === 'default' && (
+          <div className="flex items-center gap-3 px-4 py-3 bg-orange-50 border-b border-orange-100">
+            <span className="text-xl">🔔</span>
+            <p className="flex-1 text-xs text-gray-700 leading-snug">Get gym updates & offers even when the app is closed.</p>
+            <button onClick={turnOnPush} className="shrink-0 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700">
+              Turn on
+            </button>
+          </div>
+        )}
+        {pushStatus === 'ios-needs-install' && (
+          <div className="px-4 py-3 bg-orange-50 border-b border-orange-100 text-xs text-gray-700 leading-snug">
+            📲 To get notifications on iPhone, tap <b>Share</b> → <b>Add to Home Screen</b>, then open ProGym from the home screen.
+          </div>
+        )}
+        {pushStatus === 'denied' && (
+          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-[11px] text-gray-500 leading-snug">
+            Notifications are blocked for this site. Allow them in your browser's site settings to get alerts.
+          </div>
+        )}
+
         {/* List */}
         <div className="flex-1 overflow-y-auto">
           {loading && notifs.length === 0 && (
@@ -153,7 +211,15 @@ export default function NotificationBell() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-snug">{n.message}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug whitespace-pre-line">{n.message}</p>
+                    {n.image && (
+                      <img src={n.image} alt="" loading="lazy" className="mt-2 w-full rounded-lg border border-gray-100 object-cover max-h-48" />
+                    )}
+                    {n.link && (
+                      <button onClick={() => openLink(n.link!)} className="mt-1.5 text-xs font-semibold text-orange-600 hover:underline">
+                        Open →
+                      </button>
+                    )}
                     <p className="text-[10px] text-gray-300 mt-1">{formatTs(n.createdAt)}</p>
                   </div>
                 </li>

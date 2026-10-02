@@ -48,8 +48,8 @@ export default function MemberReferralPage() {
       .finally(() => setLoading(false))
   }, [user?.userId])
   const shareText = referralCode
-    ? `Join ProGym – the best gym in town! 💪\nUse my referral code *${referralCode}* when you sign up and we both earn ProCoins!\nhttps://tavrostechinfo.com/PROGYM/ggs/`
-    : `Join ProGym – the best gym in town! 💪\nhttps://tavrostechinfo.com/PROGYM/ggs/`
+    ? `Join ProGym – the best gym in town! 💪\nUse my referral code *${referralCode}* when you sign up and we both earn ProCoins!\nhttps://progym.co.in/`
+    : `Join ProGym – the best gym in town! 💪\nhttps://progym.co.in/`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralCode).then(() => {

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/phpmailer/src/Exception.php';
 require_once __DIR__ . '/../lib/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../lib/phpmailer/src/SMTP.php';
 require_once __DIR__ . '/EmailLogger.php';
+require_once __DIR__ . '/WhatsApp.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -14,20 +15,25 @@ class PhotoReminderEmail {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return 'no_email';
+        if (!$client) return 'no_email';
+
+        WhatsApp::sendTemplate($db, 'photo_reminder', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_PHOTO_REMINDER,
+            [$client['name']]);
+
+        if (empty(trim($client['email'] ?? ''))) return 'no_email';
 
         $name      = $client['name'];
         $subject   = 'Complete Your ProGym Profile & Earn 10 ProCoins';
         $html      = self::buildHtml(htmlspecialchars($name));
-        $smsText   = "Hi {$name}! Your ProGym profile photo is missing. Upload it & earn 10 ProCoins: https://tavrostechinfo.com/progym/upload-photo";
-        $whatsapp  = "📸 *Complete Your ProGym Profile*\n\nHi {$name}!\n\nYour profile photo is missing. Upload it now and earn *10 ProCoins* instantly!\n\n👉 https://tavrostechinfo.com/progym/upload-photo\n\n– ProGym Team";
+        $smsText   = "Hi {$name}! Your ProGym profile photo is missing. Upload it & earn 10 ProCoins: https://progym.co.in/upload-photo";
+        $whatsapp  = "📸 *Complete Your ProGym Profile*\n\nHi {$name}!\n\nYour profile photo is missing. Upload it now and earn *10 ProCoins* instantly!\n\n👉 https://progym.co.in/upload-photo\n\n– ProGym Team";
 
         try {
             $mail = self::makeMailer();
             $mail->addAddress(trim($client['email']), $name);
             $mail->Subject  = $subject;
             $mail->Body     = $html;
-            $mail->AltBody  = "Hi {$name}! Greetings from ProGym. Your profile photo is missing - upload it & earn 10 ProCoins! Visit: https://tavrostechinfo.com/progym/upload-photo - ProGym Team";
+            $mail->AltBody  = "Hi {$name}! Greetings from ProGym. Your profile photo is missing - upload it & earn 10 ProCoins! Visit: https://progym.co.in/upload-photo - ProGym Team";
             $mail->send();
             EmailLogger::log($db, 'photo_reminder', $clientId, $name, $client['email'], $client['mobile'] ?? null, $subject, $html, $smsText, $whatsapp, 'sent');
             return 'ok';
@@ -58,7 +64,7 @@ class PhotoReminderEmail {
         $phone     = GYM_PHONE1;
         $wa        = GYM_WHATSAPP;
         $today     = date('D, d M Y');
-        $uploadUrl = 'https://tavrostechinfo.com/progym/upload-photo';
+        $uploadUrl = 'https://progym.co.in/upload-photo';
 
         return <<<HTML
 <!DOCTYPE html>

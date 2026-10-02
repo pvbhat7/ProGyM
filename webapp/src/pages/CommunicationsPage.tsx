@@ -228,6 +228,9 @@ export default function CommunicationsPage() {
               {stats ? `${stats.overall.total} emails · ${stats.overall.sent} sent · ${stats.overall.failed} failed` : 'Loading…'}
             </p>
           </div>
+          <button onClick={() => navigate('/whatsapp')} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 border border-green-600 rounded-lg text-white hover:bg-green-700 transition-colors text-sm font-medium">
+            WhatsApp
+          </button>
           <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium">
             Dashboard
           </button>

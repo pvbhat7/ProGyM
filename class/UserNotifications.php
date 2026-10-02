@@ -43,7 +43,7 @@
 
         // GET all unread + recent notifications for a client
         public function getByClientId(){
-            $sqlQuery = "SELECT id, clientId, type, title, message, amount, isRead, createdAt FROM " . $this->db_table . " WHERE clientId = '" . $this->clientId . "' AND discontinue = 'false' ORDER BY id DESC LIMIT 50";
+            $sqlQuery = "SELECT id, clientId, type, title, message, amount, isRead, createdAt, image, link FROM " . $this->db_table . " WHERE clientId = '" . $this->clientId . "' AND discontinue = 'false' ORDER BY id DESC LIMIT 50";
             $stmt = $this->conn->prepare($sqlQuery);
             $stmt->execute();
             return $stmt;

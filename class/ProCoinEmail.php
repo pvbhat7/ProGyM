@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/phpmailer/src/Exception.php';
 require_once __DIR__ . '/../lib/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../lib/phpmailer/src/SMTP.php';
 require_once __DIR__ . '/EmailLogger.php';
+require_once __DIR__ . '/WhatsApp.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -35,7 +36,12 @@ class ProCoinEmail {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return false;
+        if (!$client) return false;
+
+        WhatsApp::sendTemplate($db, 'procoin_bonus', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_PROCOINS,
+            [$client['name'], intval($amount), $title]);
+
+        if (empty(trim($client['email'] ?? ''))) return false;
 
         $amt  = intval($amount);
         $name = $client['name'];
@@ -50,8 +56,8 @@ class ProCoinEmail {
         );
 
         $subject  = "You've received ProCoins! – " . GYM_NAME;
-        $smsText  = "Hi {$name}! 🎉 {$amt} ProCoins credited to your ProGym wallet ({$title}). View: https://tavrostechinfo.com/progym";
-        $whatsapp = "🎉 *ProCoins Credited!*\n\nHi {$name},\n\n💰 *{$amt} ProCoins* added to your ProGym wallet.\n📝 {$title}\n\n💡 1 ProCoin = ₹1\n👉 https://tavrostechinfo.com/progym";
+        $smsText  = "Hi {$name}! 🎉 {$amt} ProCoins credited to your ProGym wallet ({$title}). View: https://progym.co.in";
+        $whatsapp = "🎉 *ProCoins Credited!*\n\nHi {$name},\n\n💰 *{$amt} ProCoins* added to your ProGym wallet.\n📝 {$title}\n\n💡 1 ProCoin = ₹1\n👉 https://progym.co.in";
 
         return self::sendAndLog($db, 'procoin_bonus', $clientId, $client, $subject, $html, $smsText, $whatsapp);
     }
@@ -60,7 +66,12 @@ class ProCoinEmail {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return false;
+        if (!$client) return false;
+
+        WhatsApp::sendTemplate($db, 'procoin_birthday', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_BIRTHDAY,
+            [$client['name'], intval($amount)]);
+
+        if (empty(trim($client['email'] ?? ''))) return false;
 
         // Raw UTF-8 bytes for emoji (avoids HTML-entity issues in subject & body)
         $muscle = "\xF0\x9F\x92\xAA";                                          // 💪
@@ -89,7 +100,7 @@ class ProCoinEmail {
         $name     = $client['name'];
         $subject  = $cake . ' Happy Birthday from ' . GYM_NAME . '!';
         $smsText  = "Happy Birthday {$name}! 🎂 {$amt} ProCoins gifted to your ProGym wallet. Wishing you health & happiness! – Pro Gym Kolhapur";
-        $whatsapp = "🎂🎉 *HAPPY BIRTHDAY {$name}!* 🎉🎂\n\n💪 तुमच्या आयुष्यात आनंद, सुख आणि समृद्धी येवो.\n🙏🏻 आरोग्यदायी आणि दीर्घायुष्य लाभो.\n\n🎁 *Birthday Gift: {$amt} ProCoins* credited!\n\n💪 Pro Gym Kolhapur 🏋\n\n👉 https://tavrostechinfo.com/progym";
+        $whatsapp = "🎂🎉 *HAPPY BIRTHDAY {$name}!* 🎉🎂\n\n💪 तुमच्या आयुष्यात आनंद, सुख आणि समृद्धी येवो.\n🙏🏻 आरोग्यदायी आणि दीर्घायुष्य लाभो.\n\n🎁 *Birthday Gift: {$amt} ProCoins* credited!\n\n💪 Pro Gym Kolhapur 🏋\n\n👉 https://progym.co.in";
 
         return self::sendAndLog($db, 'procoin_birthday', $clientId, $client, $subject, $html, $smsText, $whatsapp);
     }
@@ -98,7 +109,12 @@ class ProCoinEmail {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return false;
+        if (!$client) return false;
+
+        WhatsApp::sendTemplate($db, 'procoin_gift', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_PROCOINS,
+            [$client['name'], intval($amount), $description]);
+
+        if (empty(trim($client['email'] ?? ''))) return false;
 
         $amt  = intval($amount);
         $name = $client['name'];
@@ -113,8 +129,8 @@ class ProCoinEmail {
         );
 
         $subject  = "ProCoins credited to your account – " . GYM_NAME;
-        $smsText  = "Hi {$name}! 🎁 {$amt} ProCoins credited to your ProGym wallet. {$description}. View: https://tavrostechinfo.com/progym";
-        $whatsapp = "🎁 *Special ProCoin Reward*\n\nHi {$name},\n\n💰 *{$amt} ProCoins* credited to your wallet.\n📝 {$description}\n\n💡 1 ProCoin = ₹1\n👉 https://tavrostechinfo.com/progym";
+        $smsText  = "Hi {$name}! 🎁 {$amt} ProCoins credited to your ProGym wallet. {$description}. View: https://progym.co.in";
+        $whatsapp = "🎁 *Special ProCoin Reward*\n\nHi {$name},\n\n💰 *{$amt} ProCoins* credited to your wallet.\n📝 {$description}\n\n💡 1 ProCoin = ₹1\n👉 https://progym.co.in";
 
         return self::sendAndLog($db, 'procoin_gift', $clientId, $client, $subject, $html, $smsText, $whatsapp);
     }
@@ -327,7 +343,7 @@ class ProCoinEmail {
         <tr>
           <td style="background:#ffffff;padding:0 32px 28px;text-align:center;
                      border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-            <a href="https://tavrostechinfo.com/progym"
+            <a href="https://progym.co.in"
                style="display:inline-block;background:#0f172a;color:#ffffff;
                       font-size:13px;font-weight:700;text-decoration:none;
                       padding:12px 32px;border-radius:8px;letter-spacing:0.3px;">

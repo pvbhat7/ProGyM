@@ -30,7 +30,9 @@
                 "message"   => $row['message'],
                 "amount"    => $row['amount'],
                 "isRead"    => $row['isRead'],
-                "createdAt" => $row['createdAt']
+                "createdAt" => $row['createdAt'],
+                "image"     => $row['image'],
+                "link"      => $row['link']
             );
             $cnt++;
         }

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/phpmailer/src/Exception.php';
 require_once __DIR__ . '/../lib/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../lib/phpmailer/src/SMTP.php';
 require_once __DIR__ . '/EmailLogger.php';
+require_once __DIR__ . '/WhatsApp.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -14,7 +15,7 @@ class ReminderEmail {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return false;
+        if (!$client) return false;
 
         $s = $db->prepare(
             "SELECT pd.id, pd.fees, pd.startDate, pd.endDate,
@@ -68,6 +69,13 @@ class ReminderEmail {
         $duesLine  = $hasDues ? "Pending balance: Rs.{$remInt}." : "Fully paid ✓";
         $smsText   = "Hi {$client['name']}, {$statusLine}. {$duesLine} Please renew. – {$gymLabel}";
         $whatsapp  = "📋 *Membership Reminder*\n\nHi {$client['name']},\n\n📦 Package: {$pkg['packageName']}\n📅 Valid: {$pkg['startDate']} – {$pkg['endDate']}\n⏰ {$statusLine}\n💰 {$duesLine}\n\nVisit us or call to renew. – {$gymLabel}";
+
+        $waSent = WhatsApp::sendTemplate($db, 'reminder', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_REMINDER, [
+            $client['name'], $gymLabel, $pkg['packageName'], $pkg['startDate'], $pkg['endDate'],
+            $statusLine, $hasDues ? "Rs.{$remInt} pending" : 'Fully paid',
+        ]);
+
+        if (empty(trim($client['email'] ?? ''))) return $waSent;
 
         try {
             $mail = new PHPMailer(true);
@@ -265,7 +273,7 @@ class ReminderEmail {
                   <p style="margin:0 0 14px;font-size:12px;color:#64748b;">
                     Visit us or contact to renew your membership
                   </p>
-                  <a href="https://tavrostechinfo.com/progym/login"
+                  <a href="https://progym.co.in/login"
                      style="display:inline-block;background:#0f172a;color:#ffffff;
                             font-size:13px;font-weight:700;text-decoration:none;
                             padding:12px 32px;border-radius:8px;letter-spacing:0.3px;">

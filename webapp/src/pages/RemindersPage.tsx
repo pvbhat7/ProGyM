@@ -795,7 +795,7 @@ export default function RemindersPage() {
                           return `${days} days ago`
                         })()
 
-                        const uploadUrl = 'https://tavrostechinfo.com/progym/upload-photo'
+                        const uploadUrl = 'https://progym.co.in/upload-photo'
                         const waMsg = `Hi ${m.name}! 👋 Warm greetings from ProGym!\n\nWe noticed your profile is missing a photo. 📸\n\n🎁 *Upload your photo & earn 10 ProCoins instantly!*\n\n💡 *What are ProCoins?*\n→ 100 Welcome Coins already credited to your account\n→ Earn more by completing your profile & gym activities\n→ Redeem them for discounts in the ProGym Shop 🛍️\n\n📸 Upload your photo here 👇\n${uploadUrl}\n\nSee you at the gym! 💪\n— ProGym Team`
                         const smsMsg = `Hi ${m.name}! Greetings from ProGym. Your profile photo is missing - upload it & earn 10 ProCoins (redeemable in our shop)! 📸 Upload your photo here: ${uploadUrl} - ProGym Team`
 

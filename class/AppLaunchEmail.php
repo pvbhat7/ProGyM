@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/phpmailer/src/Exception.php';
 require_once __DIR__ . '/../lib/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../lib/phpmailer/src/SMTP.php';
 require_once __DIR__ . '/EmailLogger.php';
+require_once __DIR__ . '/WhatsApp.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -11,11 +12,11 @@ use PHPMailer\PHPMailer\Exception;
 class AppLaunchEmail {
 
     private static function buildSmsText($name) {
-        return "Hi {$name}! ProGym app is now live. Track workouts, diet, attendance & earn ProCoins. Login: https://tavrostechinfo.com/progym/login";
+        return "Hi {$name}! ProGym app is now live. Track workouts, diet, attendance & earn ProCoins. Login: https://progym.co.in/login";
     }
 
     private static function buildWhatsappText($name) {
-        return "🚀 *ProGym App is Now Live!*\n\nHi {$name},\n\nYour gym just went digital. Track workouts, diet, attendance, weight & shop — all from your phone.\n\n🎁 *100 ProCoins* welcome bonus waiting for you!\n\n👉 https://tavrostechinfo.com/progym/login";
+        return "🚀 *ProGym App is Now Live!*\n\nHi {$name},\n\nYour gym just went digital. Track workouts, diet, attendance, weight & shop — all from your phone.\n\n🎁 *100 ProCoins* welcome bonus waiting for you!\n\n👉 https://progym.co.in/login";
     }
 
     /**
@@ -25,7 +26,12 @@ class AppLaunchEmail {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return false;
+        if (!$client) return false;
+
+        WhatsApp::sendTemplate($db, 'app_launch', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_APP_LAUNCH,
+            [$client['name']]);
+
+        if (empty(trim($client['email'] ?? ''))) return false;
 
         $subject  = 'ProGym App Launch - Your gym, now digital!';
         $html     = self::buildHtml(htmlspecialchars($client['name']));
@@ -65,6 +71,11 @@ class AppLaunchEmail {
                 $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
                 $s->execute([$id]);
                 $client = $s->fetch(PDO::FETCH_ASSOC);
+
+                if ($client) {
+                    WhatsApp::sendTemplate($db, 'app_launch', $id, $client['mobile'] ?? '', WhatsApp::TPL_APP_LAUNCH,
+                        [$client['name']]);
+                }
 
                 if (!$client || empty(trim($client['email'] ?? ''))) {
                     $skipped++; $results[strval($id)] = 'skipped'; continue;
@@ -298,7 +309,7 @@ class AppLaunchEmail {
                   <p style="margin:0 0 16px;font-size:13px;color:#64748b;text-align:center;">
                     Your account is ready. Sign in with your registered mobile number.
                   </p>
-                  <a href="https://tavrostechinfo.com/progym/login"
+                  <a href="https://progym.co.in/login"
                      style="display:inline-block;background:#1d4ed8;color:#ffffff;
                             font-size:14px;font-weight:700;text-decoration:none;
                             padding:14px 40px;border-radius:8px;letter-spacing:0.3px;">

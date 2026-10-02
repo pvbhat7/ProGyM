@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/phpmailer/src/Exception.php';
 require_once __DIR__ . '/../lib/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../lib/phpmailer/src/SMTP.php';
 require_once __DIR__ . '/EmailLogger.php';
+require_once __DIR__ . '/WhatsApp.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -18,7 +19,12 @@ class WelcomeEmail {
         $s = $db->prepare("SELECT name, email, mobile, admissionDate FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return false;
+        if (!$client) return false;
+
+        WhatsApp::sendTemplate($db, 'welcome', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_WELCOME,
+            [$client['name'], GYM_NAME . ', ' . GYM_CITY]);
+
+        if (empty(trim($client['email'] ?? ''))) return false;
 
         $dt          = DateTime::createFromFormat('d/m/Y', $client['admissionDate']);
         $dateDisplay = $dt ? $dt->format('D, d M Y') : date('D, d M Y');
@@ -26,8 +32,8 @@ class WelcomeEmail {
         $html        = self::buildHtml(htmlspecialchars($client['name']), $dateDisplay);
         $subject     = "\xF0\x9F\x8F\x8B Welcome to " . GYM_NAME . ', ' . GYM_CITY . '!';
         $gymLabel    = GYM_NAME . ', ' . GYM_CITY;
-        $smsText     = "Hi {$client['name']}, welcome to {$gymLabel}! 100 ProCoins credited to your wallet as welcome bonus. Login at https://tavrostechinfo.com/progym";
-        $whatsapp    = "🏋 *Welcome to {$gymLabel}!*\n\nHi {$client['name']}, your membership is now active.\n\n🎉 *100 ProCoins* credited to your wallet as a welcome bonus.\n\n👉 Login: https://tavrostechinfo.com/progym/login";
+        $smsText     = "Hi {$client['name']}, welcome to {$gymLabel}! 100 ProCoins credited to your wallet as welcome bonus. Login at https://progym.co.in";
+        $whatsapp    = "🏋 *Welcome to {$gymLabel}!*\n\nHi {$client['name']}, your membership is now active.\n\n🎉 *100 ProCoins* credited to your wallet as a welcome bonus.\n\n👉 Login: https://progym.co.in/login";
 
         try {
             $mail = new PHPMailer(true);
@@ -233,7 +239,7 @@ class WelcomeEmail {
             <p style="margin:0 0 14px;font-size:12px;color:#64748b;">
               Log in with your mobile number to get started
             </p>
-            <a href="https://tavrostechinfo.com/progym/login"
+            <a href="https://progym.co.in/login"
                style="display:inline-block;background:#0f172a;color:#ffffff;
                       font-size:13px;font-weight:700;text-decoration:none;
                       padding:12px 32px;border-radius:8px;letter-spacing:0.3px;">

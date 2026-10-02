@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/phpmailer/src/Exception.php';
 require_once __DIR__ . '/../lib/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../lib/phpmailer/src/SMTP.php';
 require_once __DIR__ . '/EmailLogger.php';
+require_once __DIR__ . '/WhatsApp.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -21,7 +22,7 @@ class PaymentEmail {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$client || empty(trim($client['email'] ?? ''))) return;
+        if (!$client) return;
 
         // Package details + plan name
         $s = $db->prepare(
@@ -44,6 +45,17 @@ class PaymentEmail {
         $s->execute([$packageDetailsId]);
         $totalPaid = floatval($s->fetchColumn());
         $remaining = max(0, floatval($pkg['fees']) - $totalPaid);
+
+        WhatsApp::sendTemplate($db, 'payment', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_PAYMENT, [
+            $client['name'],
+            number_format(floatval($feesPaid), 0),
+            $pkg['packageName'],
+            $paymentDate,
+            $remaining <= 0 ? 'Fully paid' : 'Balance: Rs.' . number_format($remaining, 0),
+            GYM_NAME . ', ' . GYM_CITY,
+        ]);
+
+        if (empty(trim($client['email'] ?? ''))) return;
 
         // Format header date (e.g. "Fri, 24 Apr 2026")
         $dt          = DateTime::createFromFormat('d/m/Y', $paymentDate);
@@ -228,7 +240,7 @@ class PaymentEmail {
                   <p style="margin:0 0 14px;font-size:12px;color:#64748b;">
                     Track your workouts, diet &amp; attendance on the ProGym app
                   </p>
-                  <a href="https://tavrostechinfo.com/progym/login"
+                  <a href="https://progym.co.in/login"
                      style="display:inline-block;background:#0f172a;color:#ffffff;
                             font-size:13px;font-weight:700;text-decoration:none;
                             padding:12px 32px;border-radius:8px;letter-spacing:0.3px;">

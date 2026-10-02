@@ -1,0 +1,4 @@
+# Push service worker must never be cached by the CDN/browser, or updates won't reach devices.
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+</IfModule>

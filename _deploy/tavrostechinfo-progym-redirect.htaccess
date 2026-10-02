@@ -1,0 +1,4 @@
+# Permanent redirect: this old webapp path was retired.
+# Everything under /progym/... now lives at https://progym.co.in/...
+RewriteEngine On
+RewriteRule ^(.*)$ https://progym.co.in/$1 [R=301,L,QSA]

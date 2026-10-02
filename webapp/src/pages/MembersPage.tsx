@@ -467,16 +467,16 @@ const duesCount = useMemo(() =>
                   const isReminderDisabled = zone === 'none' || ((zone === 'green' || zone === 'new') && dues === 0)
                   const emailColor = reminded.has(m.id) ? 'text-green-600' : remindFailed.has(m.id) ? 'text-red-500' : dues > 0 ? 'text-orange-500' : 'text-blue-600'
                   const smsBody = dues > 0
-                    ? `Hi ${m.name}, you have a pending due of Rs.${dues} at Pro Gym Kolhapur. Please clear it to continue your membership. App: https://tavrostechinfo.com/progym/login`
+                    ? `Hi ${m.name}, you have a pending due of Rs.${dues} at Pro Gym Kolhapur. Please clear it to continue your membership. App: https://progym.co.in/login`
                     : days !== null && days <= 0
-                    ? `Hi ${m.name}, your Pro Gym Kolhapur membership has expired. Renew now to continue. App: https://tavrostechinfo.com/progym/login`
-                    : `Hi ${m.name}, your Pro Gym Kolhapur membership expires in ${days} days. Renew soon! App: https://tavrostechinfo.com/progym/login`
+                    ? `Hi ${m.name}, your Pro Gym Kolhapur membership has expired. Renew now to continue. App: https://progym.co.in/login`
+                    : `Hi ${m.name}, your Pro Gym Kolhapur membership expires in ${days} days. Renew soon! App: https://progym.co.in/login`
                   const smsHref = `sms:${m.mobile}?body=${encodeURIComponent(smsBody)}`
                   const waBody = dues > 0
-                    ? `Hi ${m.name}, you have a pending due of Rs.${dues} at Pro Gym Kolhapur. Please clear it to continue your membership. App: https://tavrostechinfo.com/progym/login`
+                    ? `Hi ${m.name}, you have a pending due of Rs.${dues} at Pro Gym Kolhapur. Please clear it to continue your membership. App: https://progym.co.in/login`
                     : days !== null && days <= 0
-                    ? `Hi ${m.name}, your Pro Gym Kolhapur membership has expired. Renew now to continue. App: https://tavrostechinfo.com/progym/login`
-                    : `Hi ${m.name}, your Pro Gym Kolhapur membership expires in ${days} days. Renew soon! App: https://tavrostechinfo.com/progym/login`
+                    ? `Hi ${m.name}, your Pro Gym Kolhapur membership has expired. Renew now to continue. App: https://progym.co.in/login`
+                    : `Hi ${m.name}, your Pro Gym Kolhapur membership expires in ${days} days. Renew soon! App: https://progym.co.in/login`
                   const waHref = `https://wa.me/91${m.mobile}?text=${encodeURIComponent(waBody)}`
 
                   return (
