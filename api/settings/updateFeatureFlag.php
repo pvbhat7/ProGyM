@@ -10,7 +10,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 $key  = trim($data['key'] ?? '');
 $val  = $data['value'] ?? null;
 
-$allowed = ['showProCoinsPanel', 'showFifaUi'];
+$allowed = ['showProCoinsPanel', 'showFifaUi', 'whatsappAttendanceAlert', 'pushAttendanceAlert', 'razorpayMemberPayments'];
 if (!in_array($key, $allowed) || $val === null) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid key or missing value']);

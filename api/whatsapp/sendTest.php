@@ -17,11 +17,13 @@ $mobile   = WhatsApp::normalizeMobile(isset($data['mobile']) ? $data['mobile'] :
 $samples = [
     WhatsApp::TPL_WELCOME        => ['Test Member', 'Pro Gym, Kolhapur'],
     WhatsApp::TPL_PAYMENT        => ['Test Member', '2,000', '3 Months', date('d/m/Y'), 'Balance: Rs.1,000', 'Pro Gym, Kolhapur'],
+    WhatsApp::TPL_PAYMENT_PDF    => ['Test Member', '2,000', '3 Months', date('d/m/Y'), 'Balance: Rs.1,000', 'Pro Gym, Kolhapur'],
     WhatsApp::TPL_REMINDER       => ['Test Member', 'Pro Gym, Kolhapur', '3 Months', '01/07/2026', date('d/m/Y'), 'Expires today', 'Fully paid'],
     WhatsApp::TPL_PROCOINS       => ['Test Member', '50', 'Test bonus'],
     WhatsApp::TPL_BIRTHDAY       => ['Test Member', '100'],
     WhatsApp::TPL_PHOTO_REMINDER => ['Test Member'],
     WhatsApp::TPL_APP_LAUNCH     => ['Test Member'],
+    WhatsApp::TPL_ATTENDANCE     => ['Test Member', date('h:i A'), date('d/m/Y')],
 ];
 
 if (!isset($samples[$template])) {
@@ -39,7 +41,20 @@ if ($mobile === null || !in_array($mobile, $testNos, true)) {
 }
 
 $db = (new Database())->getConnection();
-$ok = WhatsApp::sendTemplate($db, 'test', null, $mobile, $template, $samples[$template]);
+$doc = null;
+if ($template === WhatsApp::TPL_PAYMENT_PDF) {
+    // Attach the receipt PDF of the latest payment as the sample document
+    include_once '../../class/ReceiptPdf.php';
+    $lastTxn = $db->query("SELECT MAX(id) FROM paymenttransaction")->fetchColumn();
+    $pdf     = $lastTxn ? ReceiptPdf::build($db, $lastTxn) : null;
+    $mediaId = $pdf !== null ? WhatsApp::uploadMedia($pdf, ReceiptPdf::filename($lastTxn), 'application/pdf') : null;
+    if (!$mediaId) {
+        echo json_encode(['success' => false, 'error' => 'Could not create/upload the receipt PDF']);
+        exit;
+    }
+    $doc = ['id' => $mediaId, 'filename' => ReceiptPdf::filename($lastTxn)];
+}
+$ok = WhatsApp::sendTemplate($db, 'test', null, $mobile, $template, $samples[$template], 'en', null, $doc);
 
 $err = null;
 if (!$ok) {

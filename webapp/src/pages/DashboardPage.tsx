@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { API_BASE, ACTIVITY_KEY } from '../api/config'
 import { loadSettings } from './SettingsPage'
 import ApprovedDevicesModal from '../components/ApprovedDevicesModal'
+import WhatsAppApiButton from '../components/WhatsAppApiButton'
 import type { GymFeatureKey } from '../services/license'
 
 type StatVal = number | 'err' | null
@@ -40,36 +41,6 @@ type BirthdayMember = {
   birthDate: string
 }
 
-const BIRTHDAY_MSG = (() => {
-  const muscle   = String.fromCodePoint(0x1F4AA)
-  const pray     = String.fromCodePoint(0x1F64F, 0x1F3FB)
-  const cake     = String.fromCodePoint(0x1F382)
-  const party    = String.fromCodePoint(0x1F389)
-  const confetti = String.fromCodePoint(0x1F38A)
-  const lifter   = String.fromCodePoint(0x1F3CB, 0x1F3FC, 0x200D, 0x2642, 0xFE0F)
-  const coin     = String.fromCodePoint(0x1FA99)
-  const gift     = String.fromCodePoint(0x1F381)
-  const heart    = String.fromCodePoint(0x2764, 0xFE0F)
-  const star     = String.fromCodePoint(0x1F31F)
-  return [
-    `${confetti}${cake}${party} *HAPPY BIRTHDAY* ${party}${cake}${confetti}`,
-    ``,
-    `${muscle} तुमच्या आयुष्यात आनंद, सुख आणि समृद्धी येवो.`,
-    `   आरोग्यदायी आणि दीर्घायुष्य लाभो हीच ईश्वरचरणी प्रार्थना ${pray}`,
-    ``,
-    `${cake} वाढदिवसाच्या लाख लाख शुभेच्छा ${party}`,
-    ``,
-    `${muscle} प्रो जिम कोल्हापूर ${lifter}`,
-    ``,
-    `━━━━━━━━━━━━━━`,
-    `${coin} *Birthday Gift: 25 ProCoins* credited to your account!`,
-    `${gift} Redeem on the ProGym App:`,
-    `https://progym.co.in`,
-    `━━━━━━━━━━━━━━`,
-    ``,
-    `_With love, Team ProGym_ ${heart} ${star}`,
-  ].join('\n')
-})()
 
 function greet() {
   const h = new Date().getHours()
@@ -493,7 +464,7 @@ export default function DashboardPage() {
     { label: 'Weight',            icon: '⚖️', desc: 'Track weight trends',               path: '/member-weight',    action: null,                         iconBg: 'bg-amber-100',   feature: 'weight' },
     { label: 'Send Reminders',    icon: '📨', desc: 'Bulk payment & package reminders',   path: '/reminders',        action: null,                         iconBg: 'bg-sky-100',     feature: 'reminders' },
     { label: 'Communications',    icon: '💬', desc: 'Email log · resend via SMS/WhatsApp', path: '/communications',  action: null,                         iconBg: 'bg-fuchsia-100', feature: 'communications' },
-    { label: 'Push Notifications', icon: '🔔', desc: 'Send text/image alerts to members', path: '/admin-push',      action: null,                         iconBg: 'bg-orange-100',  feature: 'communications' },
+    { label: 'Broadcast', icon: '📣', desc: 'Push notifications & WhatsApp to members', path: '/admin-push',      action: null,                         iconBg: 'bg-orange-100',  feature: 'communications' },
     { label: 'Admissions',        icon: '🗓️', desc: 'View member admissions by period',   path: '/admissions',       action: null,                         iconBg: 'bg-violet-100',  feature: 'admissions' },
     { label: 'ProCoins',          icon: '🪙', desc: 'Credit coins to members',            path: '/admin-procoins',   action: null,                         iconBg: 'bg-yellow-100',  feature: 'procoins' },
     { label: 'Before/After Wall', icon: '📸', desc: 'Member transformation photos',       path: '/admin-before-after', action: null,                       iconBg: 'bg-rose-100',    feature: 'before_after' },
@@ -863,8 +834,6 @@ export default function DashboardPage() {
             {!birthdayLoading && birthdayMembers.length > 0 && (
               <ul className="divide-y divide-gray-50">
                 {birthdayMembers.map(m => {
-                  const star   = String.fromCodePoint(0x1F31F)
-                  const waText = encodeURIComponent(`${star} *${m.name}* ${star}\n\n${BIRTHDAY_MSG}`)
                   return (
                     <li key={m.id} className="flex items-center gap-3 py-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-200 to-rose-300 flex-shrink-0 overflow-hidden shadow-sm">
@@ -878,26 +847,22 @@ export default function DashboardPage() {
                         {m.mobile && <p className="text-xs text-gray-400 mt-0.5">{m.mobile}</p>}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {m.mobile && (
-                          <a
-                            href={`https://wa.me/91${m.mobile.replace(/\D/g, '')}?text=${waText}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={`WhatsApp ${m.name}`}
-                            className="w-9 h-9 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                            </svg>
-                          </a>
-                        )}
                         {(() => {
                           const gifted  = birthdayGifted.has(m.id)
                           const gifting = birthdayGifting === m.id
-                          return (
+                          return (<>
+                            {/* Resend only after gifting — the WhatsApp text says the coins were credited */}
+                            {gifted && m.mobile && (
+                              <WhatsAppApiButton
+                                kind="birthday"
+                                clientId={m.id}
+                                title={`Resend birthday wish to ${m.name} on WhatsApp`}
+                                className="w-9 h-9 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 disabled:opacity-60 transition-colors"
+                              />
+                            )}
                             <button
                               onClick={e => { e.stopPropagation(); giftBirthdayProcoins(m) }}
+                              title="Credits 25 ProCoins and sends the birthday wish on WhatsApp + email"
                               disabled={gifted || gifting || birthdayGifting !== null}
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                                 gifted
@@ -907,11 +872,11 @@ export default function DashboardPage() {
                                   : 'bg-pink-50 hover:bg-pink-100 text-pink-700'
                               }`}
                             >
-                              {gifted ? <>✓ Wish Sent</> : gifting ? (
+                              {gifted ? <>✓ Wished &amp; Gifted</> : gifting ? (
                                 <><svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Sending…</>
                               ) : <>🎁 Wish & Gift 25 Coins</>}
                             </button>
-                          )
+                          </>)
                         })()}
                       </div>
                     </li>

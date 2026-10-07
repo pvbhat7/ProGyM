@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_BASE } from '../api/config'
+import { useAuth } from '../context/AuthContext'
+import { adminPushClientId, enablePush, getPushStatus } from '../services/pushNotifications'
+import type { PushStatus } from '../services/pushNotifications'
 
 const SETTINGS_KEY = 'progym_admin_settings'
 
@@ -23,27 +26,347 @@ function saveSettings(s: AdminSettings) {
 
 const MINUTE_OPTIONS = [1, 2, 3, 5, 10, 15, 30, 60]
 
+type AlertContact = { id: number; name: string; mobile: string; pushDevices: number }
+
+type Zone = 'red' | 'yellow' | 'green'
+const ZONES: Zone[] = ['red', 'yellow', 'green']
+const ZONE_STYLE: Record<Zone, { dot: string; label: string }> = {
+  red:    { dot: 'bg-red-500 ring-red-300',       label: 'Red · expired' },
+  yellow: { dot: 'bg-yellow-400 ring-yellow-200', label: 'Yellow · 0–5 days left' },
+  green:  { dot: 'bg-green-500 ring-green-300',   label: 'Green · 6+ days left' },
+}
+
+// ── Small building blocks ───────────────────────────────────────────────
+
+function Toggle({ on, onClick, disabled, busy, color = 'bg-green-500' }: {
+  on: boolean | null; onClick: () => void; disabled?: boolean; busy?: boolean; color?: string
+}) {
+  if (on === null) return <div className="w-10 h-6 bg-gray-100 rounded-full animate-pulse flex-shrink-0" />
+  return (
+    <button
+      type="button" role="switch" aria-checked={on}
+      disabled={disabled || busy}
+      onClick={onClick}
+      className={`relative inline-flex h-6 w-10 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-50 ${on ? color : 'bg-gray-300'}`}>
+      <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${on ? 'translate-x-[19px]' : 'translate-x-[3px]'}`} />
+    </button>
+  )
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h2 className="px-1 mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">{title}</h2>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+function Row({ icon, tint, title, hint, right, children }: {
+  icon: string; tint: string; title: ReactNode; hint?: ReactNode; right?: ReactNode; children?: ReactNode
+}) {
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0 ${tint}`}>{icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-800 leading-tight">{title}</p>
+          {hint && <p className="text-xs text-gray-400 mt-0.5 leading-snug">{hint}</p>}
+        </div>
+        {right}
+      </div>
+      {children && <div className="mt-3 ml-11">{children}</div>}
+    </div>
+  )
+}
+
+const inputCls = 'border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent disabled:bg-gray-50'
+const primaryBtn = 'px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-400 to-red-500 text-xs font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity'
+const ghostBtn = 'px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors'
+
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [settings, setSettings] = useState<AdminSettings>(loadSettings)
-  const [saved, setSaved] = useState(false)
+
+  // One toast for all save confirmations
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  function flash(msg: string) {
+    setToast(msg)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 2000)
+  }
+
+  const [fifaOpen, setFifaOpen] = useState(false)
 
   // Refer & Earn feature flag
   const [referAndEarn, setReferAndEarn] = useState<boolean>(false)
   const [referToggleLoading, setReferToggleLoading] = useState(true)
-  const [referSaved, setReferSaved] = useState(false)
 
   // FIFA World Cup 2026 UI toggle (public dashboard)
   const [showFifaUi, setShowFifaUi] = useState<boolean | null>(null)
   const [fifaSaving, setFifaSaving] = useState(false)
-  const [fifaSaved, setFifaSaved] = useState(false)
+
+  // WhatsApp attendance alert to admin (server treats a missing flag as ON)
+  const [waAttendance, setWaAttendance] = useState<boolean | null>(null)
+  const [waSaving, setWaSaving] = useState(false)
+
+  // Razorpay test/live mode (server re-checks the security PIN)
+  const [rzpMode, setRzpMode] = useState<'test' | 'live' | null>(null)
+  const [rzpPin, setRzpPin] = useState<string | null>(null)   // non-null = confirm form open
+  const [rzpSaving, setRzpSaving] = useState(false)
+  const [rzpError, setRzpError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/razorpay/getMode.php`)
+      .then(r => r.json())
+      .then((d: { mode?: 'test' | 'live' }) => setRzpMode(d.mode ?? null))
+      .catch(() => setRzpMode(null))
+  }, [])
+
+  async function switchRzpMode() {
+    if (!rzpMode || rzpPin === null) return
+    const next = rzpMode === 'live' ? 'test' : 'live'
+    setRzpSaving(true); setRzpError(null)
+    try {
+      const r = await fetch(`${API_BASE}/razorpay/setMode.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: next, pin: rzpPin }),
+      })
+      const d = await r.json()
+      if (!d.ok) throw new Error(d.error || 'Failed')
+      setRzpMode(d.mode); setRzpPin(null)
+      flash(`Razorpay switched to ${String(d.mode).toUpperCase()}`)
+    } catch (e) {
+      setRzpError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setRzpSaving(false)
+    }
+  }
 
   useEffect(() => {
     fetch(`${API_BASE}/settings/getFeatureFlags.php`)
       .then(r => r.json())
-      .then((d: { showFifaUi?: boolean }) => setShowFifaUi(d.showFifaUi ?? false))
-      .catch(() => setShowFifaUi(false))
+      .then((d: { showFifaUi?: boolean; whatsappAttendanceAlert?: boolean; pushAttendanceAlert?: boolean; razorpayMemberPayments?: boolean }) => {
+        setShowFifaUi(d.showFifaUi ?? false)
+        setWaAttendance(d.whatsappAttendanceAlert ?? true)
+        setPushAttendance(d.pushAttendanceAlert ?? false)
+        setRzpMembers(d.razorpayMemberPayments ?? false)
+      })
+      .catch(() => { setShowFifaUi(false); setWaAttendance(true); setPushAttendance(false); setRzpMembers(false) })
   }, [])
+
+  // Attendance alert: push channel + recipient contacts (members)
+  const [pushAttendance, setPushAttendance] = useState<boolean | null>(null)
+  const [pushSaving, setPushSaving] = useState(false)
+  const [alertContacts, setAlertContacts] = useState<AlertContact[] | null>(null)
+  const [contactSearch, setContactSearch] = useState('')
+  const [contactResults, setContactResults] = useState<AlertContact[]>([])
+  const [contactSearched, setContactSearched] = useState('')   // query the current results belong to
+  const [contactSaving, setContactSaving] = useState(false)
+  const [contactError, setContactError] = useState('')
+
+  useEffect(() => {
+    fetch(`${API_BASE}/settings/attendanceAlertContacts.php`)
+      .then(r => r.json())
+      .then((d: { contacts?: AlertContact[]; zones?: Zone[] }) => { setAlertContacts(d.contacts ?? []); setAlertZones(d.zones ?? ZONES) })
+      .catch(() => { setAlertContacts([]); setAlertZones(ZONES) })
+  }, [])
+
+  // Which member zones trigger the alert (all three = every member)
+  const [alertZones, setAlertZones] = useState<Zone[] | null>(null)
+  const [zonesSaving, setZonesSaving] = useState(false)
+
+  async function toggleZone(z: Zone) {
+    if (!alertZones) return
+    const prev = alertZones
+    const next = ZONES.filter(x => x === z ? !prev.includes(x) : prev.includes(x))
+    setAlertZones(next)
+    setZonesSaving(true)
+    try {
+      const r = await fetch(`${API_BASE}/settings/attendanceAlertContacts.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zones: next }),
+      })
+      const d = await r.json()
+      if (!d.success) throw new Error()
+      flash(next.length === 3 ? 'Alerts for all members' : next.length === 0 ? 'No zone selected — alerts paused' : `Alerts for ${next.join(' + ')} zone`)
+    } catch {
+      setAlertZones(prev)
+    } finally {
+      setZonesSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    const q = contactSearch.trim()
+    if (q.length < 2) { setContactResults([]); return }
+    const t = setTimeout(() => {
+      fetch(`${API_BASE}/settings/attendanceAlertContacts.php?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then((d: { results?: AlertContact[] }) => { setContactResults(d.results ?? []); setContactSearched(q) })
+        .catch(() => setContactResults([]))
+    }, 300)
+    return () => clearTimeout(t)
+  }, [contactSearch])
+
+  async function saveContacts(next: AlertContact[]) {
+    const prev = alertContacts
+    setAlertContacts(next)
+    setContactSaving(true); setContactError('')
+    try {
+      const r = await fetch(`${API_BASE}/settings/attendanceAlertContacts.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientIds: next.map(c => c.id) }),
+      })
+      const d = await r.json()
+      if (!d.success) throw new Error(d.error || 'Failed')
+      setAlertContacts(d.contacts)
+      flash('Alert contacts saved')
+    } catch (e) {
+      setAlertContacts(prev)
+      setContactError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setContactSaving(false)
+    }
+  }
+
+  function addContact(c: AlertContact) {
+    setContactSearch(''); setContactResults([])
+    if (!alertContacts || alertContacts.some(x => x.id === c.id)) return
+    saveContacts([...alertContacts, c])
+  }
+
+  // This admin device — register for push under the admin's member record
+  const { user } = useAuth()
+  const [deviceStatus, setDeviceStatus] = useState<PushStatus | null>(null)
+  const [deviceBusy, setDeviceBusy] = useState(false)
+  const [deviceMsg, setDeviceMsg] = useState('')
+
+  useEffect(() => { getPushStatus().then(setDeviceStatus).catch(() => setDeviceStatus('unsupported')) }, [])
+
+  async function enableThisDevice() {
+    if (!user) return
+    setDeviceBusy(true); setDeviceMsg('')
+    try {
+      const cid = await adminPushClientId(user.mobile)
+      if (!cid) { setDeviceMsg(`No member record with mobile ${user.mobile} — add one to receive push`); return }
+      const s = await enablePush(cid)
+      setDeviceStatus(s)
+      if (s === 'granted') {
+        const d = await fetch(`${API_BASE}/settings/attendanceAlertContacts.php`).then(r => r.json())
+        setAlertContacts(d.contacts ?? [])
+        flash('This device will receive push alerts')
+      } else if (s === 'denied') {
+        setDeviceMsg('Notifications are blocked for this site — allow them in browser site settings')
+      } else if (s === 'ios-needs-install') {
+        setDeviceMsg('On iPhone, add ProGym to the Home Screen first, then open it from there')
+      }
+    } catch {
+      setDeviceMsg('Could not enable push on this device')
+    } finally {
+      setDeviceBusy(false)
+    }
+  }
+
+  // "Test Notification" — sample alert to every contact over the ON channels
+  const [testBusy, setTestBusy] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null)
+
+  async function sendTestAlert() {
+    setTestBusy(true); setTestResult(null)
+    try {
+      const r = await fetch(`${API_BASE}/settings/testAttendanceAlert.php`, { method: 'POST' })
+      const d: {
+        success: boolean; error?: string; contacts: number
+        whatsapp: { on: boolean; sent: number; failed: number }
+        push: { on: boolean; devices: number; sent: number; failed: number }
+      } = await r.json()
+      if (!d.success) throw new Error(d.error || 'Failed')
+      if (d.contacts === 0) { setTestResult({ ok: false, text: 'No contacts to send to' }); return }
+      if (!d.whatsapp.on && !d.push.on) { setTestResult({ ok: false, text: 'Both WhatsApp and Push are OFF — nothing sent' }); return }
+      const parts: string[] = []
+      if (d.whatsapp.on) parts.push(`WhatsApp: ${d.whatsapp.sent} sent${d.whatsapp.failed ? `, ${d.whatsapp.failed} failed` : ''}`)
+      if (d.push.on) parts.push(d.push.devices === 0
+        ? 'Push: no devices registered'
+        : `Push: ${d.push.sent}/${d.push.devices} device${d.push.devices === 1 ? '' : 's'}${d.push.failed ? `, ${d.push.failed} failed` : ''}`)
+      const ok = (d.whatsapp.on ? d.whatsapp.failed === 0 : true) && (d.push.on ? d.push.devices > 0 && d.push.failed === 0 : true)
+      setTestResult({ ok, text: parts.join(' · ') })
+    } catch (e) {
+      setTestResult({ ok: false, text: e instanceof Error ? e.message : 'Failed' })
+    } finally {
+      setTestBusy(false)
+    }
+  }
+
+  async function togglePushAttendance() {
+    if (pushAttendance === null) return
+    const next = !pushAttendance
+    setPushAttendance(next)
+    setPushSaving(true)
+    try {
+      const r = await fetch(`${API_BASE}/settings/updateFeatureFlag.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'pushAttendanceAlert', value: next }),
+      })
+      if (!r.ok) throw new Error()
+      flash(next ? 'Push alerts ON' : 'Push alerts OFF')
+    } catch {
+      setPushAttendance(!next)
+    } finally {
+      setPushSaving(false)
+    }
+  }
+
+  // Razorpay "Go live" — members see Pay/Renew only when ON (server enforces it too)
+  const [rzpMembers, setRzpMembers] = useState<boolean | null>(null)
+  const [rzpMembersSaving, setRzpMembersSaving] = useState(false)
+
+  async function toggleRzpMembers() {
+    if (rzpMembers === null) return
+    const next = !rzpMembers
+    setRzpMembers(next)
+    setRzpMembersSaving(true)
+    try {
+      const r = await fetch(`${API_BASE}/settings/updateFeatureFlag.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'razorpayMemberPayments', value: next }),
+      })
+      if (!r.ok) throw new Error()
+      flash(next ? 'Online payments live for members' : 'Online payments hidden from members')
+    } catch {
+      setRzpMembers(!next)
+    } finally {
+      setRzpMembersSaving(false)
+    }
+  }
+
+  async function toggleWaAttendance() {
+    if (waAttendance === null) return
+    const next = !waAttendance
+    setWaAttendance(next)
+    setWaSaving(true)
+    try {
+      const r = await fetch(`${API_BASE}/settings/updateFeatureFlag.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'whatsappAttendanceAlert', value: next }),
+      })
+      if (!r.ok) throw new Error()
+      flash(next ? 'WhatsApp alerts ON' : 'WhatsApp alerts OFF')
+    } catch {
+      setWaAttendance(!next)
+    } finally {
+      setWaSaving(false)
+    }
+  }
 
   async function toggleFifaUi() {
     if (showFifaUi === null) return
@@ -56,8 +379,7 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'showFifaUi', value: next }),
       })
-      setFifaSaved(true)
-      setTimeout(() => setFifaSaved(false), 2000)
+      flash('Saved — public dashboard updates instantly')
     } catch {
       setShowFifaUi(!next)
     } finally {
@@ -70,7 +392,6 @@ export default function SettingsPage() {
   const [lockSavedMinutes, setLockSavedMinutes] = useState<number>(0)
   const [lockLoading, setLockLoading] = useState(true)
   const [lockSaving, setLockSaving] = useState(false)
-  const [lockSaved, setLockSaved] = useState(false)
   const [lockError, setLockError] = useState('')
 
   // Prediction launch gate — predictions are blocked for everyone until this datetime (IST)
@@ -81,7 +402,6 @@ export default function SettingsPage() {
   const [adminIdsSaved, setAdminIdsSaved] = useState<string>('')
   const [launchLoading, setLaunchLoading] = useState(true)
   const [launchSaving, setLaunchSaving] = useState(false)
-  const [launchSaved, setLaunchSaved] = useState(false)
   const [launchError, setLaunchError] = useState('')
 
   useEffect(() => {
@@ -127,17 +447,12 @@ export default function SettingsPage() {
       setLaunchAtSaved(launchAt)
       setAdminIds(trimmedIds)
       setAdminIdsSaved(trimmedIds)
-      setLaunchSaved(true)
-      setTimeout(() => setLaunchSaved(false), 1500)
+      flash('Launch settings saved')
     } catch {
       setLaunchError('Network error. Try again.')
     } finally {
       setLaunchSaving(false)
     }
-  }
-
-  function clearLaunchGate() {
-    setLaunchAt('')
   }
 
   async function saveLockMinutes() {
@@ -154,8 +469,7 @@ export default function SettingsPage() {
       })
       setLockSavedMinutes(n)
       setLockMinutes(String(n))
-      setLockSaved(true)
-      setTimeout(() => setLockSaved(false), 1500)
+      flash('Lock window saved')
     } catch {
       setLockError('Network error. Try again.')
     } finally {
@@ -172,8 +486,7 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ referAndEarn: next ? 'true' : 'false' }),
       })
-      setReferSaved(true)
-      setTimeout(() => setReferSaved(false), 1500)
+      flash(next ? 'Refer & Earn ON' : 'Refer & Earn OFF')
     } catch {
       setReferAndEarn(!next)
     }
@@ -188,7 +501,6 @@ export default function SettingsPage() {
   const [confirmPin, setConfirmPin] = useState('')
   const [pinLoading, setPinLoading] = useState(false)
   const [pinError, setPinError] = useState('')
-  const [pinSuccess, setPinSuccess] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE}/adminuser/getSecurityPin.php`)
@@ -224,8 +536,7 @@ export default function SettingsPage() {
         setCurrentPin(newPin)
         setChangingPin(false)
         setOldPin(''); setNewPin(''); setConfirmPin('')
-        setPinSuccess(true)
-        setTimeout(() => setPinSuccess(false), 2500)
+        flash('PIN updated')
       } else {
         setPinError(data.message || 'Failed to update PIN')
       }
@@ -242,11 +553,12 @@ export default function SettingsPage() {
     setPinError('')
   }
 
+  // Persist local settings; skip the toast on first render
+  const firstRun = useRef(true)
   useEffect(() => {
     saveSettings(settings)
-    setSaved(true)
-    const t = setTimeout(() => setSaved(false), 1500)
-    return () => clearTimeout(t)
+    if (firstRun.current) { firstRun.current = false; return }
+    flash('Saved')
   }, [settings])
 
   function toggleAutoLogout() {
@@ -257,10 +569,30 @@ export default function SettingsPage() {
     setSettings(prev => ({ ...prev, autoLogoutMinutes: m }))
   }
 
+  const lockExample = (() => {
+    const h = 21 * 60 - lockSavedMinutes
+    const hh = Math.floor(((h % 1440) + 1440) % 1440 / 60)
+    const mm = ((h % 60) + 60) % 60
+    return `${hh % 12 || 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'PM' : 'AM'}`
+  })()
+
+  const pinInput = (label: string, value: string, set: (v: string) => void) => (
+    <label className="flex flex-col gap-1">
+      <span className="text-[11px] text-gray-500">{label}</span>
+      <input
+        type="password" inputMode="numeric" maxLength={4} placeholder="••••"
+        value={value}
+        onChange={e => { set(filterDigits(e.target.value)); setPinError('') }}
+        disabled={pinLoading}
+        className={`${inputCls} w-full text-center tracking-[0.3em] placeholder:tracking-normal placeholder:font-normal placeholder:text-gray-300`}
+      />
+    </label>
+  )
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-xl mx-auto px-4 py-3 flex items-center gap-3">
+      <header className="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-xl mx-auto px-4 py-2.5 flex items-center gap-3">
           <button onClick={() => navigate('/dashboard')}
             className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -268,414 +600,439 @@ export default function SettingsPage() {
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="font-bold text-gray-800 text-lg">Settings</h1>
+            <h1 className="font-bold text-gray-800 text-lg leading-tight">Settings</h1>
             <p className="text-xs text-gray-400">Admin preferences</p>
           </div>
-          {saved && (
-            <span className="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">✓ Saved</span>
-          )}
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-xl mx-auto px-4 py-5 space-y-5 pb-16">
 
-        {/* ── FIFA World Cup 2026 dashboard toggle ───────────────────────── */}
-        <div className="relative bg-gradient-to-br from-blue-950 via-slate-900 to-red-950 rounded-2xl border border-amber-400/30 shadow-lg overflow-hidden">
-          <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative px-5 py-4 border-b border-white/10 flex items-center gap-3">
-            <span className="text-2xl">🏆</span>
-            <div className="flex-1">
-              <h2 className="font-black text-white text-base tracking-wide">FIFA World Cup 2026 UI</h2>
-              <p className="text-amber-200/60 text-[11px] mt-0.5 font-semibold uppercase tracking-widest">Public Dashboard Theme</p>
-            </div>
-            {showFifaUi === true && (
-              <span className="text-[10px] font-black text-blue-200 bg-blue-500/20 border border-blue-300/40 px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
-            )}
-          </div>
-
-          <div className="relative p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p className="font-bold text-white text-sm mb-1">Show FIFA UI on public dashboard</p>
-                <p className="text-white/60 text-xs leading-relaxed">
-                  Replaces the homepage with a World Cup-themed layout — team flags, upcoming match cards,
-                  countdown to kickoff, group stage strip, and star players. Members / Workouts / Admin / Attendance become compact chips.
-                  <br />
-                  <span className="text-amber-200/80 font-semibold">Turn OFF after the tournament to revert to the standard dashboard.</span>
-                </p>
-              </div>
-
-              <button
-                disabled={showFifaUi === null || fifaSaving}
-                onClick={toggleFifaUi}
-                className={`relative flex-shrink-0 w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-50 ring-1 ring-white/20 ${
-                  showFifaUi ? 'bg-gradient-to-r from-blue-500 to-red-500' : 'bg-white/15'
-                }`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 flex items-center justify-center ${
-                  showFifaUi ? 'translate-x-7' : 'translate-x-0'
-                }`}>
-                  {fifaSaving && (
-                    <svg className="w-3 h-3 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                    </svg>
-                  )}
-                </span>
-              </button>
-            </div>
-
-            {fifaSaved && (
-              <p className="mt-3 text-xs font-semibold text-amber-200 bg-amber-500/15 border border-amber-300/30 rounded-xl px-3 py-2 flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                Saved — public dashboard updates instantly
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Auto-logout card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-800 text-base">🔐 Session &amp; Security</h2>
-          </div>
-
-          {/* Toggle */}
-          <div className="px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-800 text-sm">Auto Logout</p>
-              <p className="text-xs text-gray-400 mt-0.5">Automatically log out admin after inactivity</p>
-            </div>
-            <button
-              onClick={toggleAutoLogout}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${settings.autoLogoutEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${settings.autoLogoutEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-          </div>
-
-          {/* Timeout duration */}
-          {settings.autoLogoutEnabled && (
-            <div className="px-5 pb-5 border-t border-gray-50 pt-4">
-              <p className="text-sm font-semibold text-gray-700 mb-3">Timeout Duration</p>
-              <div className="flex flex-wrap gap-2">
-                {MINUTE_OPTIONS.map(m => (
+        {/* ── Payments ─────────────────────────────────────────────── */}
+        <Section title="Online Payments · Razorpay">
+          <Row
+            icon="💳" tint="bg-emerald-50"
+            title="Go live for members"
+            hint={
+              <>
+                {rzpMembers ? 'Members see Pay / Renew in My Packages' : 'Hidden from members · admin payment links still work'}
+                {rzpMembers && rzpMode === 'test' && (
+                  <span className="block text-red-600 font-medium">⚠ Mode is TEST — switch to LIVE</span>
+                )}
+              </>
+            }
+            right={<Toggle on={rzpMembers} onClick={toggleRzpMembers} busy={rzpMembersSaving} />}
+          />
+          <Row
+            icon="⚙️" tint="bg-amber-50"
+            title="Payment mode"
+            hint={rzpMode === 'test'
+              ? 'No real money · recorded as "Razorpay (Test)"'
+              : rzpMode === 'live' ? 'Real payments via UPI, cards, netbanking' : 'Loading…'}
+            right={
+              <div className="flex p-0.5 rounded-lg bg-gray-100 text-xs font-bold flex-shrink-0">
+                {(['test', 'live'] as const).map(m => (
                   <button
-                    key={m}
-                    onClick={() => setMinutes(m)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
-                      settings.autoLogoutMinutes === m
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-300'
+                    key={m} type="button"
+                    disabled={!rzpMode || rzpSaving}
+                    onClick={() => { if (m !== rzpMode) { setRzpPin(rzpPin === null ? '' : null); setRzpError(null) } }}
+                    className={`px-3 py-1 rounded-md uppercase transition-colors disabled:opacity-50 ${
+                      rzpMode === m
+                        ? m === 'live' ? 'bg-green-500 text-white shadow-sm' : 'bg-yellow-400 text-yellow-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
                     }`}>
-                    {m < 60 ? `${m} min` : '1 hr'}
+                    {m}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-3">
-                Admin will be warned 1 minute before logout. Disable auto logout before running long bulk operations.
-              </p>
-            </div>
-          )}
-
-          {!settings.autoLogoutEnabled && (
-            <div className="mx-5 mb-4 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
-              <p className="text-xs font-semibold text-amber-700">⚠️ Auto logout is disabled — remember to log out manually when done.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Member Features */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800 text-base">🎁 Member Features</h2>
-            {referSaved && (
-              <span className="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">✓ Saved</span>
-            )}
-          </div>
-          <div className="px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-800 text-sm">Refer &amp; Earn</p>
-              <p className="text-xs text-gray-400 mt-0.5">Show the Refer &amp; Earn button to all members</p>
-            </div>
-            {referToggleLoading ? (
-              <div className="w-11 h-6 bg-gray-100 rounded-full animate-pulse" />
-            ) : (
-              <button
-                onClick={toggleReferAndEarn}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${referAndEarn ? 'bg-orange-500' : 'bg-gray-300'}`}>
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${referAndEarn ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            )}
-          </div>
-          <div className="mx-5 mb-4 px-4 py-3 rounded-xl bg-gray-50 border border-gray-100">
-            <p className="text-xs text-gray-500">
-              {referAndEarn
-                ? '✅ Refer & Earn is ON — members can see and use this feature.'
-                : '⏸ Refer & Earn is OFF — the button is disabled for all members.'}
-            </p>
-          </div>
-        </div>
-
-        {/* Prediction Lock Window card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800 text-base">⏱️ Prediction Lock Window</h2>
-            {lockSaved && (
-              <span className="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">✓ Saved</span>
-            )}
-          </div>
-
-          <div className="px-5 py-4">
-            <p className="font-semibold text-gray-800 text-sm">Close predictions before kickoff</p>
-            <p className="text-xs text-gray-400 mt-0.5 mb-3">
-              Members won't be able to submit / edit predictions inside this window.
-            </p>
-
-            {lockLoading ? (
-              <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 relative">
+            }
+          >
+            {rzpPin !== null && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-gray-500">
+                  Enter security PIN to switch to <b>{rzpMode === 'live' ? 'TEST' : 'LIVE'}</b>
+                </p>
+                <div className="flex gap-2">
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    value={lockMinutes}
-                    onChange={e => { setLockMinutes(e.target.value.replace(/\D/g, '').slice(0, 4)); setLockError('') }}
-                    placeholder="0"
-                    disabled={lockSaving}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 pr-20 text-base font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent disabled:bg-gray-50"
+                    type="password" inputMode="numeric" maxLength={6} autoFocus
+                    value={rzpPin}
+                    onChange={e => setRzpPin(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={e => { if (e.key === 'Enter' && rzpPin.length >= 4) switchRzpMode() }}
+                    className={`${inputCls} w-28`}
+                    placeholder="PIN"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 uppercase tracking-wider">minutes</span>
+                  <button disabled={rzpSaving || rzpPin.length < 4} onClick={switchRzpMode} className={primaryBtn}>
+                    {rzpSaving ? 'Switching…' : 'Switch'}
+                  </button>
+                  <button onClick={() => { setRzpPin(null); setRzpError(null) }} className={ghostBtn}>Cancel</button>
                 </div>
-                <button
-                  onClick={saveLockMinutes}
-                  disabled={lockSaving || lockMinutes === String(lockSavedMinutes) || lockMinutes === ''}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-red-500 text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-                >
-                  {lockSaving ? 'Saving…' : 'Save'}
-                </button>
+                {rzpError && <p className="text-xs text-red-600">{rzpError}</p>}
               </div>
             )}
+          </Row>
+        </Section>
 
-            {lockError && (
-              <p className="text-xs text-red-500 mt-2">{lockError}</p>
+        {/* ── Attendance alerts ────────────────────────────────────── */}
+        <Section title="Attendance Alerts · first check-in of the day">
+          <Row
+            icon="💬" tint="bg-green-50"
+            title="WhatsApp"
+            hint="Template message to every contact below"
+            right={<Toggle on={waAttendance} onClick={toggleWaAttendance} busy={waSaving} />}
+          />
+          <Row
+            icon="🔔" tint="bg-indigo-50"
+            title="Push notification"
+            hint="To devices where the contact allowed notifications in the member app"
+            right={<Toggle on={pushAttendance} onClick={togglePushAttendance} busy={pushSaving} color="bg-indigo-500" />}
+          >
+            {deviceStatus !== 'unsupported' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-gray-500">This device:</span>
+                <button
+                  type="button" onClick={enableThisDevice} disabled={deviceBusy}
+                  className="text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full disabled:opacity-50">
+                  {deviceBusy ? 'Enabling…' : deviceStatus === 'granted' ? '🔔 Re-register for alerts' : '🔔 Enable push on this device'}
+                </button>
+                {deviceMsg && <span className="w-full text-[11px] text-amber-600">{deviceMsg}</span>}
+              </div>
             )}
-          </div>
-
-          <div className="mx-5 mb-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
-            <p className="text-xs text-blue-800">
-              {lockSavedMinutes === 0 ? (
-                <>🟢 Currently <b>locking at kickoff</b> — members can predict right up until the match starts.</>
-              ) : (
-                <>🔒 Currently locking <b>{lockSavedMinutes} minute{lockSavedMinutes === 1 ? '' : 's'} before kickoff</b>. Example: if a match starts at <b>9:00 PM</b>, predictions close at <b>{(() => { const h = 21 * 60 - lockSavedMinutes; const hh = Math.floor(h / 60); const mm = h % 60; const ampm = hh >= 12 ? 'PM' : 'AM'; const dh = hh % 12 || 12; return `${dh}:${String(mm).padStart(2, '0')} ${ampm}` })()}</b>.</>
-              )}
-            </p>
-          </div>
-        </div>
-
-        {/* Prediction Launch Gate card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800 text-base">🚀 Prediction Launch</h2>
-            {launchSaved && (
-              <span className="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">✓ Saved</span>
-            )}
-          </div>
-
-          <div className="px-5 py-4">
-            <p className="font-semibold text-gray-800 text-sm">Go-live date &amp; time (IST)</p>
-            <p className="text-xs text-gray-400 mt-0.5 mb-3">
-              Before this time, members see a countdown and can't submit predictions.
-              Leave blank to make predictions live immediately.
-            </p>
-
-            {launchLoading ? (
-              <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
-            ) : (
+          </Row>
+          <Row
+            icon="🎯" tint="bg-rose-50"
+            title="Member zones"
+            hint={alertZones === null ? 'Loading…'
+              : alertZones.length === 3 ? 'All members'
+              : alertZones.length === 0 ? <span className="text-amber-600 font-medium">None selected — no alerts</span>
+              : <>Only <b className="text-gray-600 capitalize">{alertZones.join(' + ')}</b> zone members</>}
+            right={
               <div className="flex items-center gap-2">
-                <input
-                  type="datetime-local"
-                  value={launchAt}
-                  onChange={e => { setLaunchAt(e.target.value); setLaunchError('') }}
-                  disabled={launchSaving}
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent disabled:bg-gray-50"
-                />
-                {launchAt && (
+                {ZONES.map(z => {
+                  const on = alertZones?.includes(z) ?? false
+                  return (
+                    <button
+                      key={z} type="button"
+                      onClick={() => toggleZone(z)}
+                      disabled={alertZones === null || zonesSaving}
+                      title={`${ZONE_STYLE[z].label} — ${on ? 'alerts ON (tap to turn off)' : 'alerts OFF (tap to turn on)'}`}
+                      aria-pressed={on}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all disabled:cursor-wait ${ZONE_STYLE[z].dot} ${
+                        on ? 'ring-2 ring-offset-2 shadow-sm' : 'opacity-25 hover:opacity-50'
+                      }`}>
+                      {on && (
+                        <svg className="w-4 h-4 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            }
+          />
+          <Row
+            icon="👥" tint="bg-slate-100"
+            title="Contacts"
+            hint={alertContacts === null ? 'Loading…'
+              : alertContacts.length === 0 ? <span className="text-amber-600 font-medium">No contacts — nobody receives alerts</span>
+              : alertContacts.length === 1 ? '1 contact receives alerts' : `${alertContacts.length} contacts receive alerts`}
+            right={contactSaving ? <span className="text-[11px] text-gray-400">Saving…</span> : undefined}
+          >
+            <div className="space-y-2">
+              {(alertContacts ?? []).map(c => (
+                <div key={c.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-100">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate leading-tight">{c.name}</p>
+                    <p className="text-[11px] text-gray-400">{c.mobile}</p>
+                  </div>
+                  {c.pushDevices > 0
+                    ? <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full whitespace-nowrap">🔔 {c.pushDevices} device{c.pushDevices === 1 ? '' : 's'}</span>
+                    : <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap"
+                        title="Log into the member app on a phone and allow notifications to get push alerts">No push device</span>}
                   <button
-                    type="button"
-                    onClick={clearLaunchGate}
-                    disabled={launchSaving}
-                    className="px-3 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 disabled:opacity-40"
-                    title="Clear — predictions go live immediately"
-                  >
-                    Clear
+                    onClick={() => alertContacts && saveContacts(alertContacts.filter(x => x.id !== c.id))}
+                    disabled={contactSaving}
+                    title="Remove"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-40">
+                    ✕
+                  </button>
+                </div>
+              ))}
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={contactSearch}
+                  onChange={e => setContactSearch(e.target.value)}
+                  placeholder="+ Add contact — search member by name or mobile"
+                  disabled={alertContacts === null || contactSaving}
+                  className={`${inputCls} w-full font-normal`}
+                />
+                {contactResults.length > 0 && (
+                  <ul className="mt-1 bg-white border border-gray-200 rounded-xl shadow-sm max-h-64 overflow-auto divide-y divide-gray-50">
+                    {contactResults.map(r => {
+                      const added = alertContacts?.some(x => x.id === r.id)
+                      return (
+                        <li key={r.id}>
+                          <button
+                            type="button" disabled={added}
+                            onClick={() => addContact(r)}
+                            className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-orange-50 disabled:opacity-40 disabled:hover:bg-transparent">
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-sm font-semibold text-gray-800 truncate">{r.name}</span>
+                              <span className="block text-[11px] text-gray-400">{r.mobile} · #{r.id}</span>
+                            </span>
+                            <span className="text-[10px] text-gray-400">{added ? 'Added' : r.pushDevices > 0 ? `🔔 ${r.pushDevices}` : ''}</span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+              {contactResults.length === 0 && contactSearch.trim().length >= 2 && contactSearched === contactSearch.trim() && (
+                <p className="text-xs text-gray-400 px-1">No members found for “{contactSearched}”</p>
+              )}
+              {contactError && <p className="text-xs text-red-500">{contactError}</p>}
+            </div>
+          </Row>
+          <Row
+            icon="🧪" tint="bg-amber-50"
+            title="Test notification"
+            hint="Sends a sample alert (random 🔴🟡🟢 zone) to all contacts via the channels that are ON"
+            right={
+              <button
+                type="button" onClick={sendTestAlert}
+                disabled={testBusy || !alertContacts?.length}
+                className={primaryBtn}>
+                {testBusy ? 'Sending…' : 'Test Notification'}
+              </button>
+            }
+          >
+            {testResult && (
+              <p className={`text-xs font-medium px-3 py-2 rounded-lg border ${
+                testResult.ok ? 'text-green-700 bg-green-50 border-green-200' : 'text-amber-700 bg-amber-50 border-amber-200'
+              }`}>
+                {testResult.ok ? '✓ ' : '⚠ '}{testResult.text}
+              </p>
+            )}
+          </Row>
+        </Section>
+
+        {/* ── Members ──────────────────────────────────────────────── */}
+        <Section title="Member Features">
+          <Row
+            icon="🎁" tint="bg-orange-50"
+            title="Refer & Earn"
+            hint={referAndEarn ? 'Visible to all members' : 'Button disabled for all members'}
+            right={<Toggle on={referToggleLoading ? null : referAndEarn} onClick={toggleReferAndEarn} color="bg-orange-500" />}
+          />
+        </Section>
+
+        {/* ── Security ─────────────────────────────────────────────── */}
+        <Section title="Session & Security">
+          <Row
+            icon="🔐" tint="bg-blue-50"
+            title="Auto logout"
+            hint={settings.autoLogoutEnabled
+              ? 'Warns 1 min before · disable for long bulk jobs'
+              : <span className="text-amber-600 font-medium">Off — remember to log out manually</span>}
+            right={
+              <div className="flex items-center gap-2">
+                {settings.autoLogoutEnabled && (
+                  <select
+                    value={settings.autoLogoutMinutes}
+                    onChange={e => setMinutes(Number(e.target.value))}
+                    className="border border-gray-200 rounded-lg pl-2 pr-1 py-1 text-xs font-semibold text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    {MINUTE_OPTIONS.map(m => <option key={m} value={m}>{m < 60 ? `${m} min` : '1 hr'}</option>)}
+                  </select>
+                )}
+                <Toggle on={settings.autoLogoutEnabled} onClick={toggleAutoLogout} color="bg-blue-500" />
+              </div>
+            }
+          />
+          <Row
+            icon="🔑" tint="bg-purple-50"
+            title="Add-client PIN"
+            hint="Required when adding a new client"
+            right={
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold tracking-[0.25em] text-gray-800 tabular-nums">
+                  {showPin ? currentPin : '••••'}
+                </span>
+                <button
+                  onClick={() => setShowPin(v => !v)}
+                  className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-400"
+                  title={showPin ? 'Hide PIN' : 'Show PIN'}>
+                  {showPin ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+                {!changingPin && (
+                  <button onClick={() => setChangingPin(true)} className="ml-1 text-xs font-bold text-orange-600 hover:text-orange-700 px-2 py-1 rounded-md hover:bg-orange-50">
+                    Change
                   </button>
                 )}
               </div>
+            }
+          >
+            {changingPin && (
+              <form onSubmit={handleChangePin} className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {pinInput('Current', oldPin, setOldPin)}
+                  {pinInput('New', newPin, setNewPin)}
+                  {pinInput('Confirm', confirmPin, setConfirmPin)}
+                </div>
+                {pinError && <p className="text-xs text-red-500">{pinError}</p>}
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={cancelChange} disabled={pinLoading} className={ghostBtn}>Cancel</button>
+                  <button
+                    type="submit"
+                    disabled={pinLoading || oldPin.length < 4 || newPin.length < 4 || confirmPin.length < 4}
+                    className={primaryBtn}>
+                    {pinLoading ? 'Saving…' : 'Save PIN'}
+                  </button>
+                </div>
+              </form>
             )}
-          </div>
+          </Row>
+        </Section>
 
-          <div className="px-5 pb-4">
-            <p className="font-semibold text-gray-800 text-sm">Admin client IDs (bypass gate)</p>
-            <p className="text-xs text-gray-400 mt-0.5 mb-3">
-              Comma-separated client IDs that can predict before launch — use for testing.
-            </p>
-            <input
-              type="text"
-              value={adminIds}
-              onChange={e => setAdminIds(e.target.value)}
-              placeholder="e.g. 1, 42"
-              disabled={launchSaving || launchLoading}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent disabled:bg-gray-50"
-            />
-          </div>
-
-          <div className="px-5 pb-5">
+        {/* ── FIFA World Cup 2026 (archived, collapsed) ───────────── */}
+        <section>
+          <h2 className="px-1 mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">Archived</h2>
+          <div className="rounded-2xl border border-gray-100 shadow-sm overflow-hidden bg-white">
             <button
-              onClick={saveLaunchSettings}
-              disabled={launchSaving || launchLoading || (launchAt === launchAtSaved && adminIds.trim() === adminIdsSaved)}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-red-500 text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-            >
-              {launchSaving ? 'Saving…' : 'Save Launch Settings'}
-            </button>
-            {launchError && (
-              <p className="text-xs text-red-500 mt-2">{launchError}</p>
-            )}
-          </div>
-
-          <div className="mx-5 mb-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
-            <p className="text-xs text-blue-800">
-              {launchAtSaved
-                ? <>⏳ Predictions locked until <b>{launchAtSaved.replace('T', ' ')} IST</b>. Members see a countdown banner.</>
-                : <>🟢 Predictions are <b>LIVE</b> — no launch gate active.</>
-              }
-            </p>
-          </div>
-        </div>
-
-        {/* Add Client PIN card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800 text-base">🔑 Add Client PIN</h2>
-            {pinSuccess && (
-              <span className="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">✓ PIN Updated</span>
-            )}
-          </div>
-
-          {/* Current PIN display */}
-          <div className="px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-800 text-sm">Current PIN</p>
-              <p className="text-xs text-gray-400 mt-0.5">Required when adding a new client</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold tracking-[0.3em] text-gray-800 min-w-[4rem] text-right">
-                {showPin ? currentPin : '••••'}
-              </span>
-              <button
-                onClick={() => setShowPin(v => !v)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
-                title={showPin ? 'Hide PIN' : 'Show PIN'}
-              >
-                {showPin ? (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Change PIN button or form */}
-          {!changingPin ? (
-            <div className="px-5 pb-5">
-              <button
-                onClick={() => setChangingPin(true)}
-                className="w-full py-2.5 rounded-xl border-2 border-orange-200 text-orange-600 text-sm font-semibold hover:bg-orange-50 transition-colors"
-              >
-                Change PIN
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleChangePin} className="px-5 pb-5 border-t border-gray-50 pt-4 flex flex-col gap-3">
-              <p className="text-sm font-semibold text-gray-700">Change PIN</p>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500">Current PIN</label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  value={oldPin}
-                  onChange={e => { setOldPin(filterDigits(e.target.value)); setPinError('') }}
-                  placeholder="••••"
-                  maxLength={4}
-                  disabled={pinLoading}
-                  className="border border-gray-200 rounded-xl px-4 py-2.5 text-center text-lg tracking-[0.4em] font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder:tracking-normal placeholder:text-sm placeholder:font-normal placeholder:text-gray-400 disabled:bg-gray-50"
-                />
+              type="button"
+              onClick={() => setFifaOpen(o => !o)}
+              aria-expanded={fifaOpen}
+              className="w-full px-4 py-3 flex items-center gap-3 text-left bg-gradient-to-r from-blue-950 via-slate-900 to-red-950 hover:brightness-110 transition">
+              <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base bg-white/10 flex-shrink-0">🏆</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white leading-tight">FIFA World Cup 2026</p>
+                <p className="text-[11px] text-amber-200/70 mt-0.5">Tournament ended · dashboard theme &amp; predictions</p>
               </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500">New PIN</label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  value={newPin}
-                  onChange={e => { setNewPin(filterDigits(e.target.value)); setPinError('') }}
-                  placeholder="••••"
-                  maxLength={4}
-                  disabled={pinLoading}
-                  className="border border-gray-200 rounded-xl px-4 py-2.5 text-center text-lg tracking-[0.4em] font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder:tracking-normal placeholder:text-sm placeholder:font-normal placeholder:text-gray-400 disabled:bg-gray-50"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500">Confirm New PIN</label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  value={confirmPin}
-                  onChange={e => { setConfirmPin(filterDigits(e.target.value)); setPinError('') }}
-                  placeholder="••••"
-                  maxLength={4}
-                  disabled={pinLoading}
-                  className="border border-gray-200 rounded-xl px-4 py-2.5 text-center text-lg tracking-[0.4em] font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder:tracking-normal placeholder:text-sm placeholder:font-normal placeholder:text-gray-400 disabled:bg-gray-50"
-                />
-              </div>
-
-              {pinError && (
-                <p className="text-xs text-red-500 text-center">{pinError}</p>
+              {showFifaUi && (
+                <span className="text-[10px] font-black text-amber-200 bg-amber-500/20 border border-amber-300/40 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  UI still on
+                </span>
               )}
+              <svg className={`w-4 h-4 text-white/70 transition-transform ${fifaOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-              <div className="flex gap-3 mt-1">
-                <button
-                  type="button"
-                  onClick={cancelChange}
-                  disabled={pinLoading}
-                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            {fifaOpen && (
+              <div className="divide-y divide-gray-100">
+                <Row
+                  icon="🖥️" tint="bg-blue-50"
+                  title="FIFA UI on public dashboard"
+                  hint={showFifaUi ? 'World Cup layout is live — turn OFF to restore the standard dashboard' : 'Standard dashboard is shown'}
+                  right={<Toggle on={showFifaUi} onClick={toggleFifaUi} busy={fifaSaving} color="bg-gradient-to-r from-blue-500 to-red-500" />}
+                />
+
+                <Row
+                  icon="⏱️" tint="bg-sky-50"
+                  title="Prediction lock window"
+                  hint={lockSavedMinutes === 0
+                    ? 'Locks at kickoff'
+                    : `Locks ${lockSavedMinutes} min before · 9:00 PM match closes at ${lockExample}`}
+                  right={lockLoading ? <div className="w-28 h-8 bg-gray-100 rounded-lg animate-pulse" /> : (
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative">
+                        <input
+                          type="text" inputMode="numeric"
+                          value={lockMinutes}
+                          onChange={e => { setLockMinutes(e.target.value.replace(/\D/g, '').slice(0, 4)); setLockError('') }}
+                          onKeyDown={e => { if (e.key === 'Enter') saveLockMinutes() }}
+                          placeholder="0"
+                          disabled={lockSaving}
+                          className={`${inputCls} w-20 pr-9 text-right`}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-gray-400">min</span>
+                      </div>
+                      {lockMinutes !== String(lockSavedMinutes) && lockMinutes !== '' && (
+                        <button onClick={saveLockMinutes} disabled={lockSaving} className={primaryBtn}>
+                          {lockSaving ? '…' : 'Save'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={pinLoading || oldPin.length < 4 || newPin.length < 4 || confirmPin.length < 4}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-red-500 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                  {lockError && <p className="text-xs text-red-500">{lockError}</p>}
+                </Row>
+
+                <Row
+                  icon="🚀" tint="bg-rose-50"
+                  title="Prediction launch gate"
+                  hint={launchAtSaved
+                    ? <>Locked until <b className="text-gray-600">{launchAtSaved.replace('T', ' ')} IST</b></>
+                    : <>Predictions are <b className="text-green-600">LIVE</b> · no gate</>}
                 >
-                  {pinLoading ? 'Saving…' : 'Save PIN'}
-                </button>
+                  {launchLoading ? <div className="h-16 bg-gray-100 rounded-lg animate-pulse" /> : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label className="flex flex-col gap-1">
+                          <span className="text-[11px] text-gray-500">Go-live (IST) · blank = live now</span>
+                          <div className="flex gap-1.5">
+                            <input
+                              type="datetime-local"
+                              value={launchAt}
+                              onChange={e => { setLaunchAt(e.target.value); setLaunchError('') }}
+                              disabled={launchSaving}
+                              className={`${inputCls} flex-1 min-w-0`}
+                            />
+                            {launchAt && (
+                              <button type="button" onClick={() => setLaunchAt('')} disabled={launchSaving} className={ghostBtn}
+                                title="Clear — predictions go live immediately">✕</button>
+                            )}
+                          </div>
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-[11px] text-gray-500">Bypass client IDs (testing)</span>
+                          <input
+                            type="text"
+                            value={adminIds}
+                            onChange={e => setAdminIds(e.target.value)}
+                            placeholder="e.g. 1, 42"
+                            disabled={launchSaving}
+                            className={`${inputCls} w-full`}
+                          />
+                        </label>
+                      </div>
+                      {launchError && <p className="text-xs text-red-500">{launchError}</p>}
+                      {(launchAt !== launchAtSaved || adminIds.trim() !== adminIdsSaved) && (
+                        <div className="flex justify-end">
+                          <button onClick={saveLaunchSettings} disabled={launchSaving} className={primaryBtn}>
+                            {launchSaving ? 'Saving…' : 'Save launch settings'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Row>
               </div>
-            </form>
-          )}
-        </div>
+            )}
+          </div>
+        </section>
       </main>
+
+      {/* Save toast */}
+      <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-20 transition-all duration-200 ${toast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
+        <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-900 text-white text-xs font-semibold shadow-lg">
+          <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
+          {toast ?? 'Saved'}
+        </div>
+      </div>
     </div>
   )
 }

@@ -10,6 +10,7 @@
     include_once '../../class/CoinEarningRules.php';
     include_once '../../class/CoinCreditEvents.php';
     include_once '../../class/UserNotifications.php';
+    include_once '../../class/WhatsApp.php';
 
     $database = new Database();
     $db = $database->getConnection();
@@ -67,6 +68,11 @@
     // --- end ProCoin logic ---
 
     echo $resultId;
+
+    // Admin WhatsApp alert — after the response is sent so check-in stays fast
+    WhatsApp::finishResponse();
+    WhatsApp::attendanceAlert($db, $clientId);
+
     return $resultId;
 	
 ?>

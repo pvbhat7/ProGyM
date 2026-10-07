@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../api/config'
 import NotificationBell from '../components/NotificationBell'
+import PayOnlineCard from '../components/PayOnlineCard'
 
 type PaymentTx = {
   id: number
@@ -54,6 +55,7 @@ export default function MemberPackagesPage() {
   const [packages, setPackages] = useState<PackageDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!user?.userId) return
@@ -74,7 +76,7 @@ export default function MemberPackagesPage() {
       })
       .catch(() => setPackages([]))
       .finally(() => setLoading(false))
-  }, [user?.userId])
+  }, [user?.userId, reloadKey])
 
   const isActive = (pkg: PackageDetail) => {
     if (pkg.status === 'active') return true
@@ -112,6 +114,7 @@ export default function MemberPackagesPage() {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-5 pb-10">
+        {user?.userId && <PayOnlineCard clientId={user.userId} onPaid={() => setReloadKey(k => k + 1)} />}
         {loading ? (
           <div className="space-y-4">
             {[1,2].map(i => <div key={i} className="h-40 bg-gray-200 rounded-2xl animate-pulse" />)}

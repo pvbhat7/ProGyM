@@ -6,6 +6,7 @@
         
         // columns
         public $mobile;
+        public $newlyMarked = false;   // set when markAttendanceAndGetBasicDetails() inserted today's attendance
 
         // Db connection
         public function __construct($db){
@@ -59,6 +60,7 @@
 		        if($attendanceAlreadyMarked == 0 )
 		        {
 		            $this -> markAttendance();
+		            $this -> newlyMarked = true;
 		        }
 		        
 		    }

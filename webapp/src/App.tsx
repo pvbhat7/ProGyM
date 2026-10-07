@@ -47,8 +47,9 @@ import OverridePage from './pages/OverridePage'
 import { KILL_PATH, RESTORE_PATH } from './constants/secret'
 import { isTabDashboardMobile } from './constants/tabDashboard'
 import { installAudioPrewarm } from './utils/audioPrewarm'
-import { installPushMessageListener, syncPushToken } from './services/pushNotifications'
+import { installPushMessageListener, syncPushToken, adminPushClientId } from './services/pushNotifications'
 import AdminPushPage from './pages/AdminPushPage'
+import PaymentStatusPage from './pages/PaymentStatusPage'
 import PushPermissionSheet from './components/PushPermissionSheet'
 import './index.css'
 
@@ -58,6 +59,10 @@ function PushBootstrap() {
   useEffect(() => installPushMessageListener(), [])
   useEffect(() => {
     if (user && (user.role === 'member' || user.role === 'trainer')) syncPushToken(user.userId)
+    // Admin: register this device under their member record so attendance alerts reach it
+    if (user && user.role === 'admin' && !isTabDashboardMobile(user.mobile)) {
+      adminPushClientId(user.mobile).then(cid => { if (cid) syncPushToken(cid) })
+    }
   }, [user])
   // key: remount per user so a fresh login re-reads the permission state
   return <PushPermissionSheet key={user?.userId ?? 0} />
@@ -120,6 +125,7 @@ function AppRoutes() {
       <Route path="/quick-attendance" element={<DeviceAccessGate><QuickAttendancePage /></DeviceAccessGate>} />
       <Route path="/public-members"   element={<DeviceAccessGate><PublicMembersPage /></DeviceAccessGate>} />
       <Route path="/workouts"         element={<DeviceAccessGate><WorkoutsPage /></DeviceAccessGate>} />
+      <Route path="/payment-status"   element={<PaymentStatusPage />} />
       <Route path="/login"            element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/otp"              element={<PublicRoute><OtpPage /></PublicRoute>} />
 

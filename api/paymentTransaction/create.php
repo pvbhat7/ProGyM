@@ -155,7 +155,8 @@
         (int) $data->clientId,
         (int) $data->packageDetailsId,
         floatval($data->feesPaid) + $proCoinsUsed,
-        $data->paymentDate
+        $data->paymentDate,
+        (int) $resultId
     );
 
     echo $resultId;

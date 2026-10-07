@@ -17,18 +17,17 @@
     $m2 = $today->format('n'); // without leading zero e.g. "4"
 
     // Match both padded and unpadded day/month combinations
-    $patterns = array_unique([
+    // array_values: array_unique keeps original keys, which broke the 1-based bind index
+    $patterns = array_values(array_unique([
         "$d/$m/%",
         "$d/$m2/%",
         "$d2/$m/%",
         "$d2/$m2/%",
-    ]);
-
-    $placeholders = implode(',', array_fill(0, count($patterns), '?'));
+    ]));
 
     $sqlQuery = "SELECT id, name, photo, birthDate FROM client
                  WHERE discontinue = 'false'
-                 AND birthDate LIKE " . implode(" OR birthDate LIKE ", array_fill(0, count($patterns), '?'));
+                 AND (birthDate LIKE " . implode(" OR birthDate LIKE ", array_fill(0, count($patterns), '?')) . ")";
 
     $stmt = $db->prepare($sqlQuery);
     foreach ($patterns as $i => $p) {

@@ -13,6 +13,7 @@ _deploy_config.bat
 deploy_config.bat
 credentials.json
 secrets.json
+SERVER_ACCESS.md
 
 # Dependencies / virtualenvs
 node_modules/
@@ -45,3 +46,12 @@ desktop.ini
 
 # Windows-reserved filename accidentally present in repo root
 nul
+# >>> bltc plugin (managed by bootstrap) — do not edit inside this block >>>
+.mcp.json
+.claude/*
+!.claude/settings.json
+!.claude/memory/
+!.claude/context/
+.claude/context/*
+!.claude/context/reference_bugs_*
+# <<< bltc plugin (managed by bootstrap) <<<

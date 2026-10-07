@@ -34,14 +34,17 @@ interface LogRow {
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
-  progym_membership_activated: '🏋 Welcome (membership activated)',
-  progym_welcome:             '🏋 Welcome (old, marketing — unused)',
-  progym_payment_receipt:     '💰 Payment receipt',
-  progym_membership_reminder: '⏰ Membership reminder',
-  progym_procoins_credited:   '🎉 ProCoins credited',
-  progym_birthday:            '🎂 Birthday',
-  progym_photo_reminder:      '📸 Photo reminder',
-  progym_app_launch:          '🚀 App launch',
+  progym_membership_activated_v3: '🏋 Welcome (membership activated)',
+  progym_payment_receipt_v3:      '💰 Payment receipt',
+  progym_payment_receipt_pdf:     '📄 Payment receipt (PDF)',
+  progym_payment_link:            '🔗 Payment link (old)',
+  progym_payment_link_btn:        '🔗 Payment link (Pay Now button)',
+  progym_membership_reminder_v3:  '⏰ Membership reminder',
+  progym_procoins_credited_v3:    '🎉 ProCoins credited',
+  progym_birthday_v3:             '🎂 Birthday',
+  progym_photo_reminder_v3:       '📸 Photo reminder',
+  progym_app_launch_v3:           '🚀 App launch',
+  progym_attendance_alert_v3:     '📍 Attendance alert (admin)',
 }
 
 const TEMPLATE_STATUS_STYLE: Record<string, string> = {

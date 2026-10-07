@@ -4,7 +4,8 @@ import { API_BASE, MEDIA_BASE } from '../api/config'
 import { useAuth } from '../context/AuthContext'
 import ImageCropModal from '../components/ImageCropModal'
 import CouponApplier, { type CouponApplierHandle } from '../components/CouponApplier'
-import { sendPaymentReceiptOnWhatsApp } from '../utils/whatsappReceipt'
+import WhatsAppApiButton, { type WhatsAppKind } from '../components/WhatsAppApiButton'
+import PaymentLinkModal from '../components/PaymentLinkModal'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -242,13 +243,14 @@ type ReminderTheme = {
 
 function ReminderColumn({
   icon, label, theme,
-  waMessage, smsMessage, mobile10, hasEmail, channels,
+  waKind, clientId, smsMessage, mobile10, hasEmail, channels,
   emailSending, emailResult, onSendEmail, onMarkChannel,
 }: {
   icon: string
   label: string
   theme: ReminderTheme
-  waMessage: string
+  waKind: WhatsAppKind
+  clientId: string
   smsMessage: string
   mobile10: string
   hasEmail: boolean
@@ -258,11 +260,6 @@ function ReminderColumn({
   onSendEmail: () => void
   onMarkChannel: (c: 'wa' | 'sms' | 'email') => void
 }) {
-  const isMobileUA = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  const waHref = isMobileUA
-    ? `whatsapp://send?phone=91${mobile10}&text=${encodeURIComponent(waMessage)}`
-    : `https://wa.me/91${mobile10}?text=${encodeURIComponent(waMessage)}`
-
   function Channel({
     children, label, sub, dotClass,
   }: { children: React.ReactNode; label: string; sub: string; dotClass: string }) {
@@ -291,18 +288,12 @@ function ReminderColumn({
               sub={formatReminderDateLabel(channels.wa)}
               dotClass={channels.wa ? 'text-green-600 font-semibold' : 'text-gray-400'}
             >
-              <a
-                href={waHref}
-                target={isMobileUA ? undefined : '_blank'}
-                rel="noopener noreferrer"
-                onClick={() => onMarkChannel('wa')}
-                title="Send via WhatsApp"
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-green-500 text-white shadow-sm hover:bg-green-600 active:bg-green-700 transition-colors"
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                </svg>
-              </a>
+              <WhatsAppApiButton
+                kind={waKind}
+                clientId={clientId}
+                onSent={() => onMarkChannel('wa')}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-green-500 text-white shadow-sm hover:bg-green-600 active:bg-green-700 disabled:opacity-60 transition-colors"
+              />
             </Channel>
           )}
 
@@ -402,15 +393,11 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 
 function PackageRow({
   pkg,
-  clientName,
-  clientMobile,
   onEdit,
   onDelete,
   onPay,
 }: {
   pkg: PackageDetail
-  clientName: string
-  clientMobile: string
   // Omitting a handler hides the corresponding button — used for the trainer's view-only membership tab.
   onEdit?: (id: string) => void
   onDelete?: (id: string) => void
@@ -421,30 +408,6 @@ function PackageRow({
   const paid = parseFloat(pkg.amountPaid)
   const isDiscontinued = pkg.discontinue === 'true'
   const hasPending = fees > paid
-
-  // Sort transactions by id ascending so we can compute snapshot remaining at time of each payment
-  const sortedTxs = [...pkg.transactions].sort((a, b) => parseInt(a.id) - parseInt(b.id))
-  const cumulativeAtTx = new Map<string, number>()
-  let running = 0
-  for (const t of sortedTxs) {
-    running += parseFloat(t.feesPaid || '0') + parseFloat(t.proCoinsUsed || '0')
-    cumulativeAtTx.set(t.id, running)
-  }
-
-  const handleSendWhatsApp = (tx: Transaction) => {
-    const cum = cumulativeAtTx.get(tx.id) ?? parseFloat(tx.feesPaid || '0')
-    const remaining = Math.max(0, fees - cum)
-    const txPaid = parseFloat(tx.feesPaid || '0') + parseFloat(tx.proCoinsUsed || '0')
-    sendPaymentReceiptOnWhatsApp({
-      mobile: clientMobile,
-      clientName: clientName || 'Member',
-      packageName: pkg.description || `Package #${pkg.id}`,
-      duration: `${pkg.startDate} – ${pkg.endDate}`,
-      paymentDate: tx.paymentDate,
-      paid: txPaid,
-      remaining,
-    })
-  }
 
   return (
     <>
@@ -515,16 +478,12 @@ function PackageRow({
                           : <span className="text-orange-400">Pending</span>}
                       </td>
                       <td className="py-1">
-                        <button
-                          type="button"
-                          onClick={() => handleSendWhatsApp(tx)}
-                          title="Send receipt on WhatsApp"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9s-.5-.1-.7.1-.8.9-1 1.1-.4.2-.6.1-1.3-.5-2.5-1.5c-.9-.8-1.5-1.8-1.7-2.1s0-.4.1-.5l.4-.5c.1-.2.2-.3.3-.5s0-.4 0-.5-.7-1.6-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4s-1 1-1 2.5 1.1 2.9 1.2 3.1 2.1 3.2 5 4.5c.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.2.2-1.4 0-.1-.2-.2-.5-.4zM12 2A10 10 0 0 0 3.5 17.3L2 22l4.9-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z" />
-                          </svg>
-                        </button>
+                        <WhatsAppApiButton
+                          kind="payment_receipt"
+                          txnId={tx.id}
+                          title="Send receipt on WhatsApp (PRO GYM)"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-60 transition-colors"
+                        />
                       </td>
                     </tr>
                   ))}
@@ -1487,6 +1446,7 @@ export default function MemberDetailPage() {
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showRenewModal, setShowRenewModal] = useState(false)
+  const [showPayLinkModal, setShowPayLinkModal] = useState(false)
   const [editingPackage, setEditingPackage] = useState<PackageDetail | null>(null)
   const [payingPackage, setPayingPackage] = useState<PackageDetail | null>(null)
 
@@ -1868,13 +1828,10 @@ export default function MemberDetailPage() {
   const mobile10 = client.mobile.replace(/\D/g, '').slice(-10)
   const uploadUrl = 'https://progym.co.in/upload-photo'
   const loginUrl  = 'https://progym.co.in/login'
-  const waPhotoMsg = `Hi ${client.name}! 👋 Warm greetings from ProGym!\n\nWe noticed your profile is missing a photo. 📸\n\n🎁 *Upload your photo & earn 10 ProCoins instantly!*\n\n💡 *What are ProCoins?*\n→ 100 Welcome Coins already credited to your account\n→ Earn more by completing your profile & gym activities\n→ Redeem them for discounts in the ProGym Shop 🛍️\n\n📸 Upload your photo here 👇\n${uploadUrl}\n\nSee you at the gym! 💪\n— ProGym Team`
   const smsPhotoMsg = `Hi ${client.name}! Greetings from ProGym. Your profile photo is missing - upload it & earn 10 ProCoins (redeemable in our shop)! 📸 Upload your photo here: ${uploadUrl} - ProGym Team`
 
-  const waWelcomeMsg = `🏋 *Welcome to Pro Gym, Kolhapur!*\n\nHi ${client.name}, your membership is now active. We're thrilled to have you on board!\n\n🎉 *100 ProCoins* credited to your wallet as a welcome bonus.\n💡 1 ProCoin = ₹1, redeemable in the ProGym shop or on your next package.\n\n👉 Login: ${loginUrl}\n\n— ProGym Team 💪`
   const smsWelcomeMsg = `Hi ${client.name}, welcome to Pro Gym, Kolhapur! 100 ProCoins credited to your wallet as welcome bonus. Login at ${loginUrl}`
 
-  const waAppLaunchMsg = `🚀 *ProGym App is Now Live!*\n\nHi ${client.name}, your gym just went digital. Track workouts, diet, attendance, weight & shop — all from your phone.\n\n🎁 *100 ProCoins* welcome bonus waiting for you!\n💡 1 ProCoin = ₹1\n\n👉 Login: ${loginUrl}\n\n— ProGym Team 💪`
   const smsAppLaunchMsg = `Hi ${client.name}! ProGym app is now live. Track workouts, diet, attendance & earn ProCoins. Login: ${loginUrl}`
 
   const memberReminders = reminderChannels[client.id] ?? {}
@@ -2091,7 +2048,8 @@ export default function MemberDetailPage() {
                   icon="📸"
                   label="Profile Photo Reminder"
                   theme={THEME_PHOTO}
-                  waMessage={waPhotoMsg}
+                  waKind="photo_reminder"
+                  clientId={client.id}
                   smsMessage={smsPhotoMsg}
                   mobile10={mobile10}
                   hasEmail={!!client.email}
@@ -2106,7 +2064,8 @@ export default function MemberDetailPage() {
                 icon="🎉"
                 label="Welcome Message"
                 theme={THEME_WELCOME}
-                waMessage={waWelcomeMsg}
+                waKind="welcome"
+                clientId={client.id}
                 smsMessage={smsWelcomeMsg}
                 mobile10={mobile10}
                 hasEmail={!!client.email}
@@ -2120,7 +2079,8 @@ export default function MemberDetailPage() {
                 icon="🚀"
                 label="App Launch"
                 theme={THEME_APPLAUNCH}
-                waMessage={waAppLaunchMsg}
+                waKind="app_launch"
+                clientId={client.id}
                 smsMessage={smsAppLaunchMsg}
                 mobile10={mobile10}
                 hasEmail={!!client.email}
@@ -2446,6 +2406,9 @@ export default function MemberDetailPage() {
                 <button onClick={handleRenewPackage} className="flex-1 py-2 text-sm font-medium border border-orange-400 text-orange-500 rounded-lg hover:bg-orange-50 transition-colors">
                   Renew Package
                 </button>
+                <button onClick={() => setShowPayLinkModal(true)} className="flex-1 py-2 text-sm font-medium border border-green-500 text-green-600 rounded-lg hover:bg-green-50 transition-colors">
+                  Payment Link
+                </button>
               </div>
             )}
             <div className="bg-white border-y border-gray-100 shadow-sm overflow-x-auto">
@@ -2473,8 +2436,6 @@ export default function MemberDetailPage() {
                     <PackageRow
                       key={pkg.id}
                       pkg={pkg}
-                      clientName={data?.client?.name || ''}
-                      clientMobile={data?.client?.mobile || ''}
                       onEdit={isTrainer ? undefined : requestEdit}
                       onDelete={isTrainer ? undefined : requestDelete}
                       onPay={isTrainer ? undefined : requestPay}
@@ -2793,6 +2754,9 @@ export default function MemberDetailPage() {
           onClose={() => setShowRenewModal(false)}
           onSuccess={() => { setShowRenewModal(false); reloadData() }}
         />
+      )}
+      {showPayLinkModal && (
+        <PaymentLinkModal clientId={Number(client.id)} onClose={() => { setShowPayLinkModal(false); reloadData() }} />
       )}
       {editingPackage && (
         <EditPackageModal

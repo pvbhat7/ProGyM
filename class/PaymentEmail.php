@@ -15,7 +15,7 @@ class PaymentEmail {
      * Send a payment-received email for a given transaction.
      * Silently skips if the client has no email address.
      */
-    public static function send($db, $clientId, $packageDetailsId, $feesPaid, $paymentDate) {
+    public static function send($db, $clientId, $packageDetailsId, $feesPaid, $paymentDate, $txnId = null) {
         if (floatval($feesPaid) <= 0) return;
 
         // Client name + email + mobile
@@ -46,14 +46,18 @@ class PaymentEmail {
         $totalPaid = floatval($s->fetchColumn());
         $remaining = max(0, floatval($pkg['fees']) - $totalPaid);
 
-        WhatsApp::sendTemplate($db, 'payment', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_PAYMENT, [
-            $client['name'],
-            number_format(floatval($feesPaid), 0),
-            $pkg['packageName'],
-            $paymentDate,
-            $remaining <= 0 ? 'Fully paid' : 'Balance: Rs.' . number_format($remaining, 0),
-            GYM_NAME . ', ' . GYM_CITY,
-        ]);
+        if ($txnId) {
+            WhatsApp::paymentReceiptForTxn($db, $txnId);   // with the PDF receipt
+        } else {
+            WhatsApp::sendTemplate($db, 'payment', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_PAYMENT, [
+                $client['name'],
+                number_format(floatval($feesPaid), 0),
+                $pkg['packageName'],
+                $paymentDate,
+                $remaining <= 0 ? 'Fully paid' : 'Balance: Rs.' . number_format($remaining, 0),
+                GYM_NAME . ', ' . GYM_CITY,
+            ]);
+        }
 
         if (empty(trim($client['email'] ?? ''))) return;
 
@@ -96,6 +100,12 @@ class PaymentEmail {
             $mail->isHTML(true);
             $mail->Subject = $subject;
             $mail->Body    = $html;
+
+            if ($txnId) {
+                require_once __DIR__ . '/ReceiptPdf.php';
+                $pdf = ReceiptPdf::build($db, $txnId);
+                if ($pdf !== null) $mail->addStringAttachment($pdf, ReceiptPdf::filename($txnId), 'base64', 'application/pdf');
+            }
 
             $mail->send();
             EmailLogger::log($db, 'payment', $clientId, $client['name'], $client['email'], $client['mobile'] ?? null, $subject, $html, $smsText, $whatsapp, 'sent');

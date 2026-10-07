@@ -28,6 +28,11 @@ ProGym is a gym management application. The original Android app consumed a PHP 
 
 ## Deployment to Hostinger
 
+> **Agents: read [SERVER_ACCESS.md](SERVER_ACCESS.md) first** (local-only, git-ignored). It has the SSH + DB
+> credentials, the `plink`/`pscp` deploy helpers, server paths, and the safe deploy order. The live
+> frontend is now **progym.co.in** (`npm run build:root` → `webapp/dist-root/`); the steps below are the
+> older tavrostechinfo flow.
+
 Local dev runs at `http://localhost:517x/progym/` via `npm run dev` inside `webapp/`.
 
 To deploy changes to the live server (`https://tavrostechinfo.com/PROGYM/ggs/`):

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { API_BASE } from '../api/config'
+import { sendWhatsAppToClient, type WhatsAppKind } from '../components/WhatsAppApiButton'
 
 type EmailType =
   | 'all'
@@ -56,6 +57,14 @@ const TAB_CONFIG: { value: EmailType; label: string; icon: string }[] = [
   { value: 'procoin_birthday', label: 'Birthday',       icon: '🎂' },
   { value: 'procoin_gift',     label: 'ProCoin Gift',   icon: '🎁' },
 ]
+
+// email_log.type → WhatsApp API message kind (types not listed fall back to WhatsApp Web)
+const API_KIND_BY_TYPE: Record<string, WhatsAppKind> = {
+  welcome:          'welcome',
+  reminder:         'reminder',
+  photo_reminder:   'photo_reminder',
+  app_launch:       'app_launch',
+}
 
 function formatDate(iso: string): string {
   if (!iso) return ''
@@ -194,9 +203,21 @@ export default function CommunicationsPage() {
     }
   }
 
-  function handleWhatsApp(row: EmailRow | EmailDetail, waText: string) {
+  async function handleWhatsApp(row: EmailRow | EmailDetail, waText: string) {
     const mobile = normaliseMobile(row.recipientMobile)
     if (!mobile) { setToast('No mobile number on file'); return }
+
+    // Types with an approved template go out from the PRO GYM number via the API
+    const apiKind = API_KIND_BY_TYPE[row.type]
+    if (apiKind && row.clientId) {
+      setToast('Sending on WhatsApp…')
+      const res = await sendWhatsAppToClient(apiKind, { clientId: row.clientId })
+      setToast(res.success ? '✅ Sent on WhatsApp from PRO GYM' : `❌ WhatsApp not sent: ${res.error}`)
+      setTimeout(() => setToast(''), 3500)
+      return
+    }
+
+    // ProCoin bonus/gift resends carry a custom amount — fall back to WhatsApp Web
     const text = encodeURIComponent(waText)
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     if (isMobile) {

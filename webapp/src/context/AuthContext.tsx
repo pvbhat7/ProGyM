@@ -5,7 +5,7 @@ import { auth } from '../firebase'
 import { ACTIVITY_KEY, touchActivity } from '../api/config'
 import { loadSettings } from '../pages/SettingsPage'
 import { isTabDashboardMobile } from '../constants/tabDashboard'
-import { disablePush } from '../services/pushNotifications'
+import { disablePush, storedAdminPushClientId, clearAdminPushClientId } from '../services/pushNotifications'
 
 const STORAGE_KEY = 'progym_auth'
 const COOKIE_KEY  = 'progym_member_session'
@@ -97,6 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     if (user && user.role !== 'admin') disablePush(user.userId)
+    if (user && user.role === 'admin') {
+      const cid = storedAdminPushClientId()
+      if (cid) disablePush(cid)
+      clearAdminPushClientId()
+    }
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(ACTIVITY_KEY)
     clearMemberCookie()

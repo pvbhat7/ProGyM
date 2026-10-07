@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://progym.co.in/sitemap.xml

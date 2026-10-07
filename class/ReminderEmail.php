@@ -70,10 +70,7 @@ class ReminderEmail {
         $smsText   = "Hi {$client['name']}, {$statusLine}. {$duesLine} Please renew. – {$gymLabel}";
         $whatsapp  = "📋 *Membership Reminder*\n\nHi {$client['name']},\n\n📦 Package: {$pkg['packageName']}\n📅 Valid: {$pkg['startDate']} – {$pkg['endDate']}\n⏰ {$statusLine}\n💰 {$duesLine}\n\nVisit us or call to renew. – {$gymLabel}";
 
-        $waSent = WhatsApp::sendTemplate($db, 'reminder', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_REMINDER, [
-            $client['name'], $gymLabel, $pkg['packageName'], $pkg['startDate'], $pkg['endDate'],
-            $statusLine, $hasDues ? "Rs.{$remInt} pending" : 'Fully paid',
-        ]);
+        $waSent = WhatsApp::reminder($db, $clientId);
 
         if (empty(trim($client['email'] ?? ''))) return $waSent;
 

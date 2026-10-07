@@ -99,6 +99,30 @@ export async function syncPushToken(clientId: number): Promise<void> {
   } catch { /* best effort */ }
 }
 
+// Admins log in with an admin_user id, but push tokens are keyed by client id —
+// so an admin's device is registered under the member record with the same mobile.
+const LS_ADMIN_CID_KEY = 'progym_admin_push_cid'
+
+export async function adminPushClientId(mobile: string): Promise<number> {
+  try {
+    const r = await fetch(`${API_BASE}/client/existsByMobile.php?mobile=${encodeURIComponent(mobile)}`)
+    const d: { id?: number } = await r.json()
+    const id = d.id && d.id > 0 ? d.id : 0
+    if (id) localStorage.setItem(LS_ADMIN_CID_KEY, String(id))
+    return id
+  } catch {
+    return 0
+  }
+}
+
+export function storedAdminPushClientId(): number {
+  return parseInt(localStorage.getItem(LS_ADMIN_CID_KEY) || '0', 10) || 0
+}
+
+export function clearAdminPushClientId() {
+  localStorage.removeItem(LS_ADMIN_CID_KEY)
+}
+
 /** Called on logout so the next person on this device doesn't get our pushes. */
 export async function disablePush(clientId: number): Promise<void> {
   const token = localStorage.getItem(LS_TOKEN_KEY)
