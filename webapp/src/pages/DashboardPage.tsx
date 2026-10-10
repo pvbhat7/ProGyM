@@ -6,6 +6,8 @@ import { API_BASE, ACTIVITY_KEY } from '../api/config'
 import { loadSettings } from './SettingsPage'
 import ApprovedDevicesModal from '../components/ApprovedDevicesModal'
 import WhatsAppApiButton from '../components/WhatsAppApiButton'
+import AiSearch from '../components/AiSearch'
+import { isTabDashboardMobile } from '../constants/tabDashboard'
 import type { GymFeatureKey } from '../services/license'
 
 type StatVal = number | 'err' | null
@@ -483,7 +485,7 @@ export default function DashboardPage() {
     { label: 'Members',           icon: '👥', desc: 'Manage gym members',                  path: '/members',          action: null,                         iconBg: 'bg-blue-100',    feature: 'members' },
     { label: 'Attendance',        icon: '📋', desc: 'Track daily attendance',              path: '/attendance',       action: null,                         iconBg: 'bg-green-100',   feature: 'attendance' },
     { label: 'Packages',          icon: '📦', desc: 'View & edit packages',               path: '/packages',         action: null,                         iconBg: 'bg-purple-100',  feature: 'packages' },
-    { label: 'Diet Plans',        icon: '🥗', desc: 'Assign diet templates',              path: null,                action: null,                         iconBg: 'bg-orange-100',  feature: 'diet_plans' },
+    { label: 'Diet Plans',        icon: '🥗', desc: 'AI diet plans for members',          path: '/admin-diet-plans', action: null,                        iconBg: 'bg-orange-100',  feature: 'diet_plans' },
     { label: 'Workouts',          icon: '🏋️', desc: 'Manage workout plans',               path: '/admin-workouts',   action: null,                         iconBg: 'bg-red-100',     feature: 'workouts' },
     { label: 'Collection',        icon: '💰', desc: 'Revenue & earnings',                 path: null,                action: openCollectionModal,           iconBg: 'bg-emerald-100', feature: 'collection' },
     { label: 'Roles',             icon: '🛡️', desc: 'Admin users & access',               path: '/roles',            action: null,                         iconBg: 'bg-indigo-100',  feature: 'roles' },
@@ -571,14 +573,22 @@ export default function DashboardPage() {
           <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full bg-orange-500/15 blur-3xl" />
           <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl" />
         </div>
-        <div className="relative max-w-5xl mx-auto px-4 pt-8 pb-20">
-          <span className="inline-block text-xs font-bold uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full mb-3">
-            Admin Dashboard
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
-            {greet()}! <span className="wave-emoji">👋</span>
-          </h1>
-          <p className="text-slate-400 text-sm mt-2">{todayFormatted()}</p>
+        <div className="relative max-w-5xl mx-auto px-4 pt-8 pb-20 flex flex-col lg:flex-row lg:items-start gap-5 lg:gap-8">
+          <div className="shrink-0">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full mb-3">
+              Admin Dashboard
+            </span>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
+              {greet()}! <span className="wave-emoji">👋</span>
+            </h1>
+            <p className="text-slate-400 text-sm mt-2">{todayFormatted()}</p>
+          </div>
+          {/* AI Search — admin only (server re-checks the Firebase login belongs to an admin) */}
+          {!isTabDashboardMobile(mobile) && (
+            <div className="flex-1 min-w-0 lg:pt-9">
+              <AiSearch />
+            </div>
+          )}
         </div>
       </div>
 

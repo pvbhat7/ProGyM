@@ -15,4 +15,16 @@ const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 setPersistence(auth, browserLocalPersistence)
 
+/**
+ * Firebase ID token for server calls that verify the login (AI Search, AI Diet Plans).
+ * After a page refresh Firebase restores the session asynchronously — wait for it,
+ * otherwise auth.currentUser is still null for the first moments.
+ */
+export async function getIdTokenOrThrow(feature: string): Promise<string> {
+  await auth.authStateReady()
+  const user = auth.currentUser
+  if (!user) throw new Error(`Please log out and log in again (with OTP) to use ${feature}.`)
+  return user.getIdToken()
+}
+
 export default app

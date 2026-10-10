@@ -109,7 +109,7 @@ export default function MemberDashboardPage() {
     },
     { label: 'Refer & Earn', icon: '🎁', desc: 'Invite friends, earn coins', available: referAndEarnEnabled, path: '/member-referral' },
     { label: 'My Workout',  icon: '🏋️', desc: "Today's exercise plan",    available: false, path: '' },
-    { label: 'My Diet',     icon: '🥗', desc: 'Meal plan for today',       available: false, path: '' },
+    { label: 'My Diet',     icon: '🥗', desc: 'Your meal plan from the gym', available: true, path: '/member-diet' },
   ]
 
   return (

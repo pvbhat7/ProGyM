@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import DietPlanPanel from '../components/DietPlanPanel'
 import { API_BASE, MEDIA_BASE } from '../api/config'
 import { useAuth } from '../context/AuthContext'
 import ImageCropModal from '../components/ImageCropModal'
@@ -1420,7 +1421,7 @@ function PayModal({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type Tab = 'profile' | 'memberships' | 'attendance' | 'weight' | 'workout'
+type Tab = 'profile' | 'memberships' | 'attendance' | 'weight' | 'workout' | 'diet'
 
 export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -1946,6 +1947,7 @@ export default function MemberDetailPage() {
         { key: 'attendance', label: 'Attendance', badge: attendance.length },
         { key: 'weight', label: 'Weight', badge: weights.length },
         { key: 'workout', label: 'Workouts' },
+        { key: 'diet', label: '🥗 Diet' },
       ]
 
   // Current photo for display in edit mode
@@ -2439,8 +2441,7 @@ export default function MemberDetailPage() {
                     <InfoRow label="Diet Plan" value={dietName} />
                     <InfoRow label="Workout Plan" value={workoutName} />
                   </div>
-                )}
-              </>
+                )}              </>
             )}
           </div>
         )}
@@ -2712,6 +2713,8 @@ export default function MemberDetailPage() {
         )}
 
         {/* ── Workouts ── */}
+        {tab === 'diet' && !isTrainer && <DietPlanPanel memberId={Number(client.id)} />}
+
         {tab === 'workout' && (
           <div className="space-y-4">
             {workoutTabLoading ? (

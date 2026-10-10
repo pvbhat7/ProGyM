@@ -32,6 +32,8 @@ import SettingsPage from './pages/SettingsPage'
 import UploadProfilePhotoPage from './pages/UploadProfilePhotoPage'
 import AdminReferralsPage from './pages/AdminReferralsPage'
 import AdminWorkoutsPage from './pages/AdminWorkoutsPage'
+import AdminDietPlansPage from './pages/AdminDietPlansPage'
+import MemberDietPage from './pages/MemberDietPage'
 import AdminProfilePhotoReviewPage from './pages/AdminProfilePhotoReviewPage'
 import AdminWorldCupMatchesPage from './pages/AdminWorldCupMatchesPage'
 import AdminWorldCupLeaderboardPage from './pages/AdminWorldCupLeaderboardPage'
@@ -148,6 +150,7 @@ function AppRoutes() {
       <Route path="/license"            element={<AdminRoute><LicensePage /></AdminRoute>} />
       <Route path="/admin-referrals"    element={<AdminRoute><AdminReferralsPage /></AdminRoute>} />
       <Route path="/admin-workouts"     element={<AdminRoute><AdminWorkoutsPage /></AdminRoute>} />
+      <Route path="/admin-diet-plans"   element={<AdminRoute><AdminDietPlansPage /></AdminRoute>} />
       <Route path="/admin-photo-review" element={<AdminRoute><AdminProfilePhotoReviewPage /></AdminRoute>} />
       <Route path="/communications"     element={<AdminRoute><CommunicationsPage /></AdminRoute>} />
       <Route path="/whatsapp"           element={<AdminRoute><WhatsAppPage /></AdminRoute>} />
@@ -162,6 +165,7 @@ function AppRoutes() {
       <Route path="/member-profile"    element={<MemberRoute><MemberProfilePage /></MemberRoute>} />
       <Route path="/member-attendance" element={<MemberRoute><MemberAttendancePage /></MemberRoute>} />
       <Route path="/member-packages"   element={<MemberRoute><MemberPackagesPage /></MemberRoute>} />
+      <Route path="/member-diet"       element={<MemberRoute><MemberDietPage /></MemberRoute>} />
       <Route path="/member-weight"     element={<AuthRoute><MemberWeightTrackerPage /></AuthRoute>} />
       <Route path="/member-procoins"      element={<MemberRoute><MemberProCoinsPage /></MemberRoute>} />
       <Route path="/member-before-after" element={<MemberRoute><MemberBeforeAfterPage /></MemberRoute>} />
