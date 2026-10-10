@@ -18,6 +18,8 @@ $clientId    = intval($data->clientId ?? 0);
 $amount      = intval($data->amount ?? 0);
 $description = trim($data->description ?? 'ProCoin Gift from Admin');
 $isBirthday  = !empty($data->isBirthday);
+// Birthday "App" mode: admin sends the wish from their own WhatsApp — skip the API message
+$whatsappApi = !isset($data->whatsappApi) || !empty($data->whatsappApi);
 
 if ($clientId <= 0 || $amount <= 0) {
     http_response_code(400);
@@ -41,7 +43,7 @@ $s2 = $db->prepare(
 $s2->execute([$txnId, $description, $amount, $today, $clientId]);
 
 $emailed = $isBirthday
-    ? ProCoinEmail::sendBirthdayGift($db, $clientId, $amount)
+    ? ProCoinEmail::sendBirthdayGift($db, $clientId, $amount, $whatsappApi)
     : ProCoinEmail::sendGift($db, $clientId, $amount, $description);
 
 echo json_encode(['success' => true, 'emailed' => $emailed]);

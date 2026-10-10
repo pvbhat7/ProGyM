@@ -141,7 +141,9 @@ try {
         'read_only'  => true,
         'reason'     => $status['reason'] ?? 'locked',
         'contact'    => GymLicenseVerifier::contact(),
-        'message'    => 'Subscription expired — the app is in read-only mode. Please contact the vendor to renew.',
+        // Neutral wording — gym members can see this text; the admin UI explains the
+        // subscription state itself (banner + popup keyed off `locked`).
+        'message'    => 'Server is temporarily unavailable. Please try again after some time.',
     ]);
     exit;
 } catch (Throwable $e) {

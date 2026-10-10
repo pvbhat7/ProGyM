@@ -450,6 +450,12 @@
     .footer-brand { display:flex; align-items:center; gap: 10px; font-weight:800; color:#0f172a; }
     .footer-brand .brand-mark { width:32px; height:32px; }
     .footer-brand .brand-mark img { width:24px; height:24px; }
+    .footer-credit {
+      margin-top: 18px; padding-top: 14px; border-top: 1px dashed #fde6d3;
+      text-align: center; font-size: 13px; color:#94a3b8;
+    }
+    .footer-credit a { color:#ea580c; font-weight:700; text-decoration:none; }
+    .footer-credit a:hover { text-decoration: underline; }
 
     /* Floating action buttons */
     .fab-stack {
@@ -631,7 +637,7 @@
       </div>
       <div class="nav-actions">
         <a class="nav-cta" href="https://progym.co.in/login">
-          Login
+          Login / Sign up
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
         </a>
         <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('menu-open')"><span></span></button>
@@ -644,7 +650,7 @@
     <a href="#services" onclick="document.body.classList.remove('menu-open')">Services</a>
     <a href="#trainer" onclick="document.body.classList.remove('menu-open')">Trainer</a>
     <a href="#contact" onclick="document.body.classList.remove('menu-open')">Contact</a>
-    <a class="mob-login" href="https://progym.co.in/login">Member Login →</a>
+    <a class="mob-login" href="https://progym.co.in/login">Login / Sign up →</a>
   </div>
 
   <header class="hero" id="top">
@@ -656,11 +662,11 @@
           <p class="lede reveal">ProGym is where Kolhapur trains — modern equipment, expert coaching, and a complete fitness ecosystem in the heart of Kalamba. Personal training, cardio, strength, diet plans, Zumba and steam — all under one roof.</p>
 
           <div class="cta-row reveal">
-            <a class="btn btn-primary" href="#contact">
-              Join Now
+            <a class="btn btn-primary" href="https://wa.me/918796655176?text=Hi%20ProGym%2C%20I%27d%20like%20to%20join%20the%20gym." target="_blank" rel="noopener">
+              Join the Gym
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
-            <a class="btn btn-ghost" href="#services">See what we offer</a>
+            <a class="btn btn-ghost" href="https://progym.co.in/login">Login / Sign up</a>
           </div>
         </div>
 
@@ -862,11 +868,12 @@
           </div>
 
           <div class="contact-cta">
-            <a class="btn btn-primary" href="mailto:progymkop@gmail.com">
-              Email us
+            <a class="btn btn-primary" href="https://wa.me/918796655176?text=Hi%20ProGym%2C%20I%27d%20like%20to%20join%20the%20gym." target="_blank" rel="noopener">
+              Join the Gym
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
-            <a class="btn btn-ghost" href="https://progym.co.in/login">Member Login</a>
+            <a class="btn btn-ghost" href="https://progym.co.in/login">Login / Sign up</a>
+            <a class="btn btn-ghost" href="mailto:progymkop@gmail.com">Email us</a>
           </div>
         </div>
 
@@ -984,6 +991,9 @@
         <a href="/cancellation.html">Cancellation Policy</a> ·
         <a href="/shipping.html">Shipping Policy</a>
       </div>
+    </div>
+    <div class="container footer-credit">
+      Developed by <a href="https://tavrostechinfo.com" target="_blank" rel="noopener">Tavros Tech Software Solutions</a>
     </div>
   </footer>
 

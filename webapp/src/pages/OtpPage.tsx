@@ -144,7 +144,7 @@ export default function OtpPage() {
       return
     }
 
-    throw new Error('Mobile not registered')
+    return false   // not registered — caller offers sign-up
   }
 
   const handleVerify = async () => {
@@ -157,8 +157,14 @@ export default function OtpPage() {
     const otp = digits.join('')
     setVerifying(true)
     try {
-      await verifyOtp(otp)
-      await determineRoleAndLogin()
+      const cred = await verifyOtp(otp)
+      const registered = await determineRoleAndLogin()
+      if (registered === false) {
+        // Verified mobile, but not a member yet → self sign-up (the token proves the OTP to the server)
+        const phoneIdToken = await cred.user.getIdToken()
+        navigate('/signup', { replace: true, state: { method: 'mobile', mobile, phoneIdToken, next } })
+        return
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (msg.includes('No OTP')) {

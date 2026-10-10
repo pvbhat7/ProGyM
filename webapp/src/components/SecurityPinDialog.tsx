@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { API_BASE } from '../api/config'
 
 interface Props {
-  onSuccess: () => void
+  /** Receives the verified PIN so the caller can send it with the protected request. */
+  onSuccess: (pin: string) => void
   onCancel: () => void
 }
 
@@ -32,7 +33,7 @@ export default function SecurityPinDialog({ onSuccess, onCancel }: Props) {
       })
       const data = await res.json()
       if (data.valid) {
-        onSuccess()
+        onSuccess(pin)
       } else {
         setError('Incorrect PIN. Please try again.')
         setPin('')

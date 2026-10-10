@@ -7,6 +7,8 @@ export interface GoogleAuthResult {
   googleUid: string
   email: string | null
   displayName: string | null
+  /** Firebase ID token — lets the server verify the Google account (self sign-up). */
+  idToken: string
 }
 
 export async function signInWithGoogle(): Promise<GoogleAuthResult> {
@@ -15,5 +17,6 @@ export async function signInWithGoogle(): Promise<GoogleAuthResult> {
     googleUid: result.user.uid,
     email: result.user.email,
     displayName: result.user.displayName,
+    idToken: await result.user.getIdToken(),
   }
 }

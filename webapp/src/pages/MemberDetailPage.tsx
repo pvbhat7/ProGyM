@@ -1430,6 +1430,7 @@ export default function MemberDetailPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [data, setData] = useState<MemberDetail | null>(null)
+  const [activeSaving, setActiveSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [tab, setTab] = useState<Tab>('memberships')
@@ -1882,6 +1883,41 @@ export default function MemberDetailPage() {
     if (lastPkg) setShowRenewModal(true)
   }
 
+  // Enable / disable profile. The daily batch disables members whose latest package
+  // ended 31+ days ago (or who have none), so warn when enabling such a member.
+  async function toggleProfileActive() {
+    if (!data || activeSaving) return
+    const next = isActive ? 'disable' : 'enable'
+    const lastDays = calcDaysLeft(lastPkg?.endDate ?? null)
+    const batchWillUndo = next === 'enable' && (lastDays === null || lastDays < -31)
+    const msg = (next === 'disable'
+      ? `Disable ${client.name}?\n\nThey won't be able to use the member app until enabled again.`
+      : `Enable ${client.name}?` + (batchWillUndo
+        ? `\n\n⚠ ${lastPkg ? 'Their last package ended over a month ago' : 'They have no package'} — the daily auto-check will disable them again unless a package is added.`
+        : ''))
+      + `\n\n💬 ${client.name} will get a WhatsApp message that their account was ${next === 'disable' ? 'deactivated' : 'activated'}.`
+    if (!window.confirm(msg)) return
+    setActiveSaving(true)
+    try {
+      const r = await fetch(`${API_BASE}/client/updateProfileActiveFlag.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: client.id, profileActiveFlag: next }),
+      })
+      if (r.status === 423) return   // license locked — the global popup already explains it
+      const d = await r.json()
+      if (!d.success) throw new Error(d.error || 'Failed')
+      setData(prev => prev ? { ...prev, client: { ...prev.client, profileActiveFlag: d.profileActiveFlag } } : prev)
+      if (d.whatsapp && !d.whatsapp.sent) {
+        window.alert(`Profile ${next === 'disable' ? 'disabled' : 'enabled'}, but the WhatsApp message was not sent:\n${d.whatsapp.error}`)
+      }
+    } catch (e) {
+      window.alert(`Could not update: ${e instanceof Error ? e.message : 'Failed'}`)
+    } finally {
+      setActiveSaving(false)
+    }
+  }
+
   function handleEdit(packageId: string) {
     const pkg = packages.find(p => p.id === packageId)
     if (pkg) setEditingPackage(pkg)
@@ -1944,10 +1980,24 @@ export default function MemberDetailPage() {
             >
               Cancel
             </button>
-          ) : (
+          ) : isTrainer ? (
             <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
               {isActive ? 'Active' : 'Inactive'}
             </span>
+          ) : (
+            <button
+              type="button" role="switch" aria-checked={isActive}
+              onClick={toggleProfileActive}
+              disabled={activeSaving}
+              title={isActive ? 'Profile enabled — tap to disable' : 'Profile disabled — tap to enable'}
+              className="flex items-center gap-2 flex-shrink-0 pl-2.5 pr-1 py-1 rounded-full border border-gray-200 hover:bg-gray-50 disabled:opacity-60 transition-colors">
+              <span className={`text-xs font-semibold ${isActive ? 'text-green-700' : 'text-gray-500'}`}>
+                {activeSaving ? 'Saving…' : isActive ? 'Active' : 'Inactive'}
+              </span>
+              <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isActive ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+              </span>
+            </button>
           )}
         </div>
       </header>

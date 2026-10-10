@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLicense } from '../context/LicenseContext'
 import { fetchLicenseHistory, type LicenseHistoryResponse } from '../services/license'
+import { VENDOR_NAME, RENEW_URL } from '../components/LicenseLockOverlay'
 
 // Read-only License page for the gym admin — shows current subscription
 // status, days remaining, vendor contact + payment history from the
@@ -33,6 +34,8 @@ export default function LicensePage() {
   }
 
   const daysLeft = lic?.expiry ? daysUntil(lic.expiry) : null
+  const needsRenewal = state.status === 'grace' || state.status === 'locked' || state.status === 'unknown'
+    || (state.status === 'active' && daysLeft !== null && daysLeft <= 7)
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
@@ -43,13 +46,19 @@ export default function LicensePage() {
             Your current subscription status, plan and vendor contact.
           </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-50 disabled:opacity-50"
-          disabled={refreshing || state.status === 'loading'}
-        >
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-50 disabled:opacity-50"
+            disabled={refreshing || state.status === 'loading'}
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <a href={RENEW_URL} target="_blank" rel="noopener noreferrer"
+            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 shadow-sm">
+            Renew subscription
+          </a>
+        </div>
       </div>
 
       {/* Status card */}
@@ -78,6 +87,39 @@ export default function LicensePage() {
             ) : null}
           </div>
         </div>
+
+        {/* Renew call-to-action — grace (incl. extra grace days), locked, unknown, or expiring within 7 days */}
+        {needsRenewal ? (
+          <div className={`mt-4 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${
+            state.status === 'grace' ? 'bg-amber-50 border border-amber-200'
+            : state.status === 'active' ? 'bg-emerald-50 border border-emerald-200'
+            : 'bg-red-50 border border-red-200'
+          }`}>
+            <p className="flex-1 text-sm text-slate-700">
+              {state.status === 'grace'
+                ? <>Grace period active{lic?.grace_until ? <> until <strong>{lic.grace_until}</strong></> : null} — renew now to avoid read-only mode.</>
+                : state.status === 'active'
+                ? <>Your plan expires {daysLeft === 0 ? <strong>today</strong> : <>in <strong>{daysLeft} {daysLeft === 1 ? 'day' : 'days'}</strong></>} — renew early to stay uninterrupted.</>
+                : <>The app is in <strong>read-only mode</strong>. Renew to restore full access.</>}
+            </p>
+            <div className="flex gap-2 shrink-0">
+              <a href={RENEW_URL} target="_blank" rel="noopener noreferrer"
+                className={`px-4 py-2.5 rounded-lg text-white text-sm font-bold shadow-sm text-center ${
+                  state.status === 'grace' ? 'bg-amber-600 hover:bg-amber-700'
+                  : state.status === 'active' ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-red-600 hover:bg-red-700'
+                }`}>
+                Renew subscription →
+              </a>
+              {contact.phone ? (
+                <a href={`tel:${contact.phone}`}
+                  className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 text-center">
+                  📞 Call
+                </a>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Validity + contact */}
@@ -104,7 +146,7 @@ export default function LicensePage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="font-semibold text-slate-900 mb-3">For payment or renewal, contact</h3>
           <div className="space-y-2 text-sm">
-            <div><span className="text-slate-500">Name:</span> <span className="font-medium">{contact.name || '—'}</span></div>
+            <div><span className="text-slate-500">Name:</span> <span className="font-medium">{VENDOR_NAME}</span></div>
             <div><span className="text-slate-500">Phone:</span>{' '}
               {contact.phone ? <a href={`tel:${contact.phone}`} className="text-blue-600 hover:underline font-medium">{contact.phone}</a> : '—'}
             </div>
@@ -200,7 +242,7 @@ function statusLabel(s: string): string {
 function statusDescription(s: string): string {
   return s === 'active' ? "Thanks — your subscription is current. Full access is enabled."
        : s === 'grace'  ? 'Your subscription payment is overdue. Please renew before the grace period ends.'
-       : s === 'locked' ? 'The subscription is not currently active. Please contact the vendor to reactivate.'
+       : s === 'locked' ? `The subscription is not currently active. Please contact ${VENDOR_NAME} to reactivate.`
        : s === 'loading' ? 'Fetching current status from the license server.'
        : 'Could not determine current license status. Try refreshing.'
 }

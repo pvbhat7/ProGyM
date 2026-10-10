@@ -13,8 +13,7 @@ if (empty($cfg['access_token']) || empty($cfg['waba_id'])) {
     exit;
 }
 
-$version = !empty($cfg['api_version']) ? $cfg['api_version'] : 'v23.0';
-$ch = curl_init("https://graph.facebook.com/{$version}/{$cfg['waba_id']}/message_templates?fields=name,status,category,language,rejected_reason,components&limit=100");
+$ch = curl_init(WhatsApp::apiUrl($cfg['waba_id'] . '/message_templates?fields=name,status,category,language,rejected_reason,components&limit=100'));
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $cfg['access_token']],

@@ -4,6 +4,7 @@
  *
  * Config + secrets live outside public_html in secure_keys/whatsapp.json:
  *   access_token, phone_number_id, waba_id, api_version, app_secret, verify_token,
+ *   api_base        (string, optional) — API gateway, default https://graph.facebook.com (see apiUrl())
  *   enabled         (bool)  — master switch
  *   allowed_numbers (array) — if non-empty, only these numbers (e.g. "9198xxxxxxxx") receive messages
  *
@@ -26,6 +27,8 @@ class WhatsApp {
     const TPL_PHOTO_REMINDER = 'progym_photo_reminder_v3';
     const TPL_APP_LAUNCH     = 'progym_app_launch_v3';
     const TPL_ATTENDANCE     = 'progym_attendance_alert_v3';     // {{1}} member name, {{2}} time, {{3}} date
+    const TPL_SIGNUP_ALERT   = 'progym_signup_alert_v1';         // UTILITY staff alert; {{1}} name, {{2}} mobile, {{3}} via, {{4}} date+time
+    const TPL_ACCOUNT_DEACTIVATED = 'progym_account_deactivated_v1'; // UTILITY; {{1}} name, {{2}} gym
     const TPL_PAYMENT_LINK   = 'progym_payment_link';            // UTILITY; {{1}} name, {{2}} gym, {{3}} amount, {{4}} for, {{5}} url, {{6}} days valid
     const TPL_PAYMENT_LINK_BTN = 'progym_payment_link_btn';      // UTILITY; {{1}} name, {{2}} gym, {{3}} amount, {{4}} for, {{5}} days; URL button https://rzp.io/{{1}}
     const TPL_ANNOUNCEMENT       = 'progym_announcement';         // MARKETING; {{1}} name, {{2}} admin's text
@@ -43,6 +46,18 @@ class WhatsApp {
             self::$cfg = is_array($cfg) ? $cfg : array();
         }
         return self::$cfg;
+    }
+
+    /**
+     * Full Cloud API URL for $path, e.g. apiUrl('123/messages') → https://graph.facebook.com/v23.0/123/messages.
+     * Config 'api_base' switches the gateway (default Meta; Tavros Connect = https://tavrosconnect.com),
+     * 'api_version' the Graph version (default v23.0). Every WhatsApp API call must go through this.
+     */
+    public static function apiUrl($path) {
+        $cfg     = self::config();
+        $base    = !empty($cfg['api_base']) ? $cfg['api_base'] : 'https://graph.facebook.com';
+        $version = !empty($cfg['api_version']) ? $cfg['api_version'] : 'v23.0';
+        return rtrim($base, '/') . '/' . $version . '/' . ltrim($path, '/');
     }
 
     /** "98765 43210" / "+91-9876543210" / "09876543210" → "919876543210"; null if unusable. */
@@ -109,13 +124,16 @@ class WhatsApp {
             }
             if ($components) $payload['template']['components'] = $components;
 
-            $version = !empty($cfg['api_version']) ? $cfg['api_version'] : 'v23.0';
-            $ch = curl_init("https://graph.facebook.com/{$version}/{$cfg['phone_number_id']}/messages");
+            $headers = ['Authorization: Bearer ' . $cfg['access_token'], 'Content-Type: application/json'];
+            $nameHeader = self::contactNameHeader($db, $cfg, $clientId, $to);
+            if ($nameHeader !== null) $headers[] = $nameHeader;
+
+            $ch = curl_init(self::apiUrl($cfg['phone_number_id'] . '/messages'));
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST           => true,
                 CURLOPT_POSTFIELDS     => json_encode($payload),
-                CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $cfg['access_token'], 'Content-Type: application/json'],
+                CURLOPT_HTTPHEADER     => $headers,
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_TIMEOUT        => 10,
             ]);
@@ -141,6 +159,28 @@ class WhatsApp {
             error_log('WhatsApp error: ' . $e->getMessage());
             self::$lastError = $e->getMessage();
             return false;
+        }
+    }
+
+    /**
+     * Tavros Connect only: 'X-Contact-Name' header so the gateway's Chats show the member's name.
+     * Added only when the recipient IS that client — staff alerts (attendance, sign-up) carry the
+     * member's clientId but go to staff numbers, and must not label the staff chat with the member.
+     * Returns null when not applicable; never throws (sending must not depend on it).
+     */
+    private static function contactNameHeader($db, $cfg, $clientId, $to) {
+        try {
+            if (empty($cfg['api_base']) || stripos($cfg['api_base'], 'tavrosconnect') === false) return null;
+            if (intval($clientId) <= 0 || !($db instanceof PDO)) return null;
+            $s = $db->prepare("SELECT name, mobile FROM client WHERE id = ? LIMIT 1");
+            $s->execute([intval($clientId)]);
+            $c = $s->fetch(PDO::FETCH_ASSOC);
+            if (!$c || self::normalizeMobile($c['mobile']) !== $to) return null;
+            $name = trim((string)$c['name']);
+            return $name === '' ? null : 'X-Contact-Name: ' . rawurlencode($name);
+        } catch (Throwable $e) {
+            error_log('WhatsApp contact-name lookup failed: ' . $e->getMessage());
+            return null;
         }
     }
 
@@ -223,8 +263,7 @@ class WhatsApp {
             $tmp = tempnam(sys_get_temp_dir(), 'wam');
             file_put_contents($tmp, $bytes);
 
-            $version = !empty($cfg['api_version']) ? $cfg['api_version'] : 'v23.0';
-            $ch = curl_init("https://graph.facebook.com/{$version}/{$cfg['phone_number_id']}/media");
+            $ch = curl_init(self::apiUrl($cfg['phone_number_id'] . '/media'));
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST           => true,

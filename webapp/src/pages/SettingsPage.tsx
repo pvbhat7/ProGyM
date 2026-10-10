@@ -28,6 +28,10 @@ const MINUTE_OPTIONS = [1, 2, 3, 5, 10, 15, 30, 60]
 
 type AlertContact = { id: number; name: string; mobile: string; pushDevices: number }
 
+type AlertType = 'attendance' | 'signup'
+const ALERT_TYPE_FLAG: Record<AlertType, string>  = { attendance: 'alertAttendance', signup: 'alertSignup' }
+const ALERT_TYPE_LABEL: Record<AlertType, string> = { attendance: 'Attendance', signup: 'Sign-up' }
+
 type Zone = 'red' | 'yellow' | 'green'
 const ZONES: Zone[] = ['red', 'yellow', 'green']
 const ZONE_STYLE: Record<Zone, { dot: string; label: string }> = {
@@ -150,14 +154,40 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch(`${API_BASE}/settings/getFeatureFlags.php`)
       .then(r => r.json())
-      .then((d: { showFifaUi?: boolean; whatsappAttendanceAlert?: boolean; pushAttendanceAlert?: boolean; razorpayMemberPayments?: boolean }) => {
+      .then((d: { showFifaUi?: boolean; whatsappAttendanceAlert?: boolean; pushAttendanceAlert?: boolean;
+                  alertAttendance?: boolean; alertSignup?: boolean; razorpayMemberPayments?: boolean }) => {
         setShowFifaUi(d.showFifaUi ?? false)
         setWaAttendance(d.whatsappAttendanceAlert ?? true)
         setPushAttendance(d.pushAttendanceAlert ?? false)
+        setAlertTypes({ attendance: d.alertAttendance ?? true, signup: d.alertSignup ?? true })
         setRzpMembers(d.razorpayMemberPayments ?? false)
       })
-      .catch(() => { setShowFifaUi(false); setWaAttendance(true); setPushAttendance(false); setRzpMembers(false) })
+      .catch(() => { setShowFifaUi(false); setWaAttendance(true); setPushAttendance(false); setAlertTypes({ attendance: true, signup: true }); setRzpMembers(false) })
   }, [])
+
+  // Admin alert types — each on/off on its own (channels + contacts are shared)
+  const [alertTypes, setAlertTypes] = useState<Record<AlertType, boolean> | null>(null)
+  const [alertTypeSaving, setAlertTypeSaving] = useState<AlertType | null>(null)
+
+  async function toggleAlertType(t: AlertType) {
+    if (!alertTypes) return
+    const next = !alertTypes[t]
+    setAlertTypes({ ...alertTypes, [t]: next })
+    setAlertTypeSaving(t)
+    try {
+      const r = await fetch(`${API_BASE}/settings/updateFeatureFlag.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: ALERT_TYPE_FLAG[t], value: next }),
+      })
+      if (!r.ok) throw new Error()
+      flash(`${ALERT_TYPE_LABEL[t]} alert ${next ? 'ON' : 'OFF'}`)
+    } catch {
+      setAlertTypes(prev => prev ? { ...prev, [t]: !next } : prev)
+    } finally {
+      setAlertTypeSaving(null)
+    }
+  }
 
   // Attendance alert: push channel + recipient contacts (members)
   const [pushAttendance, setPushAttendance] = useState<boolean | null>(null)
@@ -274,33 +304,38 @@ export default function SettingsPage() {
     }
   }
 
-  // "Test Notification" — sample alert to every contact over the ON channels
-  const [testBusy, setTestBusy] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null)
+  // "Test" per alert type — sample alert to every contact over the ON channels
+  const [testBusy, setTestBusy] = useState<AlertType | null>(null)
+  const [testResult, setTestResult] = useState<{ type: AlertType; ok: boolean; text: string } | null>(null)
 
-  async function sendTestAlert() {
-    setTestBusy(true); setTestResult(null)
+  async function sendTestAlert(type: AlertType) {
+    setTestBusy(type); setTestResult(null)
+    const setResult = (ok: boolean, text: string) => setTestResult({ type, ok, text })
     try {
-      const r = await fetch(`${API_BASE}/settings/testAttendanceAlert.php`, { method: 'POST' })
+      const r = await fetch(`${API_BASE}/settings/testAttendanceAlert.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      })
       const d: {
         success: boolean; error?: string; contacts: number
         whatsapp: { on: boolean; sent: number; failed: number }
         push: { on: boolean; devices: number; sent: number; failed: number }
       } = await r.json()
       if (!d.success) throw new Error(d.error || 'Failed')
-      if (d.contacts === 0) { setTestResult({ ok: false, text: 'No contacts to send to' }); return }
-      if (!d.whatsapp.on && !d.push.on) { setTestResult({ ok: false, text: 'Both WhatsApp and Push are OFF — nothing sent' }); return }
+      if (d.contacts === 0) { setResult(false, 'No contacts to send to'); return }
+      if (!d.whatsapp.on && !d.push.on) { setResult(false, 'Both WhatsApp and Push are OFF — nothing sent'); return }
       const parts: string[] = []
       if (d.whatsapp.on) parts.push(`WhatsApp: ${d.whatsapp.sent} sent${d.whatsapp.failed ? `, ${d.whatsapp.failed} failed` : ''}`)
       if (d.push.on) parts.push(d.push.devices === 0
         ? 'Push: no devices registered'
         : `Push: ${d.push.sent}/${d.push.devices} device${d.push.devices === 1 ? '' : 's'}${d.push.failed ? `, ${d.push.failed} failed` : ''}`)
       const ok = (d.whatsapp.on ? d.whatsapp.failed === 0 : true) && (d.push.on ? d.push.devices > 0 && d.push.failed === 0 : true)
-      setTestResult({ ok, text: parts.join(' · ') })
+      setResult(ok, parts.join(' · '))
     } catch (e) {
-      setTestResult({ ok: false, text: e instanceof Error ? e.message : 'Failed' })
+      setResult(false, e instanceof Error ? e.message : 'Failed')
     } finally {
-      setTestBusy(false)
+      setTestBusy(null)
     }
   }
 
@@ -493,21 +528,12 @@ export default function SettingsPage() {
   }
 
   // PIN management state
-  const [currentPin, setCurrentPin] = useState('')
-  const [showPin, setShowPin] = useState(false)
   const [changingPin, setChangingPin] = useState(false)
   const [oldPin, setOldPin] = useState('')
   const [newPin, setNewPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [pinLoading, setPinLoading] = useState(false)
   const [pinError, setPinError] = useState('')
-
-  useEffect(() => {
-    fetch(`${API_BASE}/adminuser/getSecurityPin.php`)
-      .then(r => r.json())
-      .then(d => setCurrentPin(d.pin ?? ''))
-      .catch(() => {})
-  }, [])
 
   function filterDigits(val: string) {
     return val.replace(/\D/g, '').slice(0, 4)
@@ -533,7 +559,6 @@ export default function SettingsPage() {
       })
       const data = await res.json()
       if (data.success) {
-        setCurrentPin(newPin)
         setChangingPin(false)
         setOldPin(''); setNewPin(''); setConfirmPin('')
         flash('PIN updated')
@@ -575,6 +600,23 @@ export default function SettingsPage() {
     const mm = ((h % 60) + 60) % 60
     return `${hh % 12 || 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'PM' : 'AM'}`
   })()
+
+  // Test button + result for one alert type (sample goes to all contacts over the ON channels)
+  const testControls = (t: AlertType) => (
+    <div className="flex items-center gap-2 flex-wrap">
+      <button
+        type="button" onClick={() => sendTestAlert(t)}
+        disabled={testBusy !== null || !alertContacts?.length}
+        className="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-full disabled:opacity-50">
+        {testBusy === t ? 'Sending…' : '🧪 Send test'}
+      </button>
+      {testResult?.type === t && (
+        <span className={`text-[11px] font-medium ${testResult.ok ? 'text-green-700' : 'text-amber-700'}`}>
+          {testResult.ok ? '✓ ' : '⚠ '}{testResult.text}
+        </span>
+      )}
+    </div>
+  )
 
   const pinInput = (label: string, value: string, set: (v: string) => void) => (
     <label className="flex flex-col gap-1">
@@ -672,18 +714,18 @@ export default function SettingsPage() {
           </Row>
         </Section>
 
-        {/* ── Attendance alerts ────────────────────────────────────── */}
-        <Section title="Attendance Alerts · first check-in of the day">
+        {/* ── Admin alerts: channels + recipients (shared by every alert type) ─── */}
+        <Section title="Admin Alerts · how & who">
           <Row
             icon="💬" tint="bg-green-50"
             title="WhatsApp"
-            hint="Template message to every contact below"
+            hint="Every alert type below, to each contact"
             right={<Toggle on={waAttendance} onClick={toggleWaAttendance} busy={waSaving} />}
           />
           <Row
             icon="🔔" tint="bg-indigo-50"
             title="Push notification"
-            hint="To devices where the contact allowed notifications in the member app"
+            hint="Every alert type, to devices where the contact allowed notifications"
             right={<Toggle on={pushAttendance} onClick={togglePushAttendance} busy={pushSaving} color="bg-indigo-500" />}
           >
             {deviceStatus !== 'unsupported' && (
@@ -698,38 +740,6 @@ export default function SettingsPage() {
               </div>
             )}
           </Row>
-          <Row
-            icon="🎯" tint="bg-rose-50"
-            title="Member zones"
-            hint={alertZones === null ? 'Loading…'
-              : alertZones.length === 3 ? 'All members'
-              : alertZones.length === 0 ? <span className="text-amber-600 font-medium">None selected — no alerts</span>
-              : <>Only <b className="text-gray-600 capitalize">{alertZones.join(' + ')}</b> zone members</>}
-            right={
-              <div className="flex items-center gap-2">
-                {ZONES.map(z => {
-                  const on = alertZones?.includes(z) ?? false
-                  return (
-                    <button
-                      key={z} type="button"
-                      onClick={() => toggleZone(z)}
-                      disabled={alertZones === null || zonesSaving}
-                      title={`${ZONE_STYLE[z].label} — ${on ? 'alerts ON (tap to turn off)' : 'alerts OFF (tap to turn on)'}`}
-                      aria-pressed={on}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all disabled:cursor-wait ${ZONE_STYLE[z].dot} ${
-                        on ? 'ring-2 ring-offset-2 shadow-sm' : 'opacity-25 hover:opacity-50'
-                      }`}>
-                      {on && (
-                        <svg className="w-4 h-4 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            }
-          />
           <Row
             icon="👥" tint="bg-slate-100"
             title="Contacts"
@@ -796,26 +806,61 @@ export default function SettingsPage() {
               {contactError && <p className="text-xs text-red-500">{contactError}</p>}
             </div>
           </Row>
+        </Section>
+
+        {/* ── Alert types: each with its own on/off + Test ──────────────────── */}
+        <Section title="Alert Types">
           <Row
-            icon="🧪" tint="bg-amber-50"
-            title="Test notification"
-            hint="Sends a sample alert (random 🔴🟡🟢 zone) to all contacts via the channels that are ON"
-            right={
-              <button
-                type="button" onClick={sendTestAlert}
-                disabled={testBusy || !alertContacts?.length}
-                className={primaryBtn}>
-                {testBusy ? 'Sending…' : 'Test Notification'}
-              </button>
-            }
+            icon="✅" tint="bg-emerald-50"
+            title="Attendance check-in"
+            hint={alertTypes?.attendance === false ? 'Off — no check-in alerts' : "Member's first check-in of the day"}
+            right={<Toggle on={alertTypes ? alertTypes.attendance : null} onClick={() => toggleAlertType('attendance')}
+                     busy={alertTypeSaving === 'attendance'} color="bg-emerald-500" />}
           >
-            {testResult && (
-              <p className={`text-xs font-medium px-3 py-2 rounded-lg border ${
-                testResult.ok ? 'text-green-700 bg-green-50 border-green-200' : 'text-amber-700 bg-amber-50 border-amber-200'
-              }`}>
-                {testResult.ok ? '✓ ' : '⚠ '}{testResult.text}
-              </p>
-            )}
+            <div className={`space-y-2 ${alertTypes?.attendance === false ? 'opacity-40 pointer-events-none' : ''}`}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-[11px] text-gray-500">Zones:</span>
+                <div className="flex items-center gap-2">
+                  {ZONES.map(z => {
+                    const on = alertZones?.includes(z) ?? false
+                    return (
+                      <button
+                        key={z} type="button"
+                        onClick={() => toggleZone(z)}
+                        disabled={alertZones === null || zonesSaving}
+                        title={`${ZONE_STYLE[z].label} — ${on ? 'alerts ON (tap to turn off)' : 'alerts OFF (tap to turn on)'}`}
+                        aria-pressed={on}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-all disabled:cursor-wait ${ZONE_STYLE[z].dot} ${
+                          on ? 'ring-2 ring-offset-1 shadow-sm' : 'opacity-25 hover:opacity-50'
+                        }`}>
+                        {on && (
+                          <svg className="w-3.5 h-3.5 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                <span className="text-[11px] text-gray-400">
+                  {alertZones === null ? '' : alertZones.length === 3 ? 'All members'
+                    : alertZones.length === 0 ? <span className="text-amber-600 font-medium">None — no alerts</span>
+                    : <>Only <b className="text-gray-600 capitalize">{alertZones.join(' + ')}</b></>}
+                </span>
+              </div>
+              {testControls('attendance')}
+            </div>
+          </Row>
+          <Row
+            icon="🆕" tint="bg-sky-50"
+            title="New sign-up"
+            hint={alertTypes?.signup === false ? 'Off — no sign-up alerts' : 'Someone creates an account from the login screen'}
+            right={<Toggle on={alertTypes ? alertTypes.signup : null} onClick={() => toggleAlertType('signup')}
+                     busy={alertTypeSaving === 'signup'} color="bg-sky-500" />}
+          >
+            <div className={alertTypes?.signup === false ? 'opacity-40 pointer-events-none' : ''}>
+              {testControls('signup')}
+            </div>
           </Row>
         </Section>
 
@@ -857,24 +902,10 @@ export default function SettingsPage() {
             hint="Required when adding a new client"
             right={
               <div className="flex items-center gap-1">
-                <span className="text-sm font-bold tracking-[0.25em] text-gray-800 tabular-nums">
-                  {showPin ? currentPin : '••••'}
+                {/* The server no longer reveals the PIN (it was publicly readable) */}
+                <span className="text-sm font-bold tracking-[0.25em] text-gray-800" title="Hidden for security — use Change to set a new PIN">
+                  ••••
                 </span>
-                <button
-                  onClick={() => setShowPin(v => !v)}
-                  className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-400"
-                  title={showPin ? 'Hide PIN' : 'Show PIN'}>
-                  {showPin ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
                 {!changingPin && (
                   <button onClick={() => setChangingPin(true)} className="ml-1 text-xs font-bold text-orange-600 hover:text-orange-700 px-2 py-1 rounded-md hover:bg-orange-50">
                     Change

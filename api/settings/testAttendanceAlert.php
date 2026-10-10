@@ -21,7 +21,9 @@ include_once '../../class/AttendanceAlert.php';
 
 try {
     $db = (new Database())->getConnection();
-    echo json_encode(array_merge(['success' => true], AttendanceAlert::sendTest($db)));
+    $in   = json_decode(file_get_contents("php://input"), true) ?: [];
+    $type = ($in['type'] ?? '') === 'signup' ? 'signup' : 'attendance';
+    echo json_encode(array_merge(['success' => true, 'type' => $type], AttendanceAlert::sendTest($db, $type)));
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

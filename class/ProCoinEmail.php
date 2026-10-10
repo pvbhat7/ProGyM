@@ -62,14 +62,17 @@ class ProCoinEmail {
         return self::sendAndLog($db, 'procoin_bonus', $clientId, $client, $subject, $html, $smsText, $whatsapp);
     }
 
-    public static function sendBirthdayGift($db, $clientId, $amount) {
+    /** $sendWhatsApp=false → admin sends the wish from their own WhatsApp app (Dashboard "App" mode). */
+    public static function sendBirthdayGift($db, $clientId, $amount, $sendWhatsApp = true) {
         $s = $db->prepare("SELECT name, email, mobile FROM client WHERE id = ? LIMIT 1");
         $s->execute([$clientId]);
         $client = $s->fetch(PDO::FETCH_ASSOC);
         if (!$client) return false;
 
-        WhatsApp::sendTemplate($db, 'procoin_birthday', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_BIRTHDAY,
-            [$client['name'], intval($amount)]);
+        if ($sendWhatsApp) {
+            WhatsApp::sendTemplate($db, 'procoin_birthday', $clientId, $client['mobile'] ?? '', WhatsApp::TPL_BIRTHDAY,
+                [$client['name'], intval($amount)]);
+        }
 
         if (empty(trim($client['email'] ?? ''))) return false;
 

@@ -94,6 +94,19 @@ function calcDaysLeft(endDate?: string | null): number | null {
   return Math.ceil((end.getTime() - now.getTime()) / 86400000)
 }
 
+const BDAY_MODE_KEY = 'progym_bday_wish_mode'
+
+/** wa.me link with the classic ProGym birthday message (same text as the birthday email/SMS). */
+function birthdayWaUrl(m: { name: string; mobile: string }): string | null {
+  const d = m.mobile.replace(/\D/g, '').slice(-10)
+  if (d.length !== 10) return null
+  const text =
+    `🎂🎉 *HAPPY BIRTHDAY ${m.name}!* 🎉🎂\n\n` +
+    `💪 तुमच्या आयुष्यात आनंद, सुख आणि समृद्धी येवो.\n🙏🏻 आरोग्यदायी आणि दीर्घायुष्य लाभो.\n\n` +
+    `🎁 *Birthday Gift: 25 ProCoins* credited!\n\n💪 Pro Gym Kolhapur 🏋\n\n👉 https://progym.co.in`
+  return `https://wa.me/91${d}?text=${encodeURIComponent(text)}`
+}
+
 function zoneOf(days: number | null): 'green' | 'yellow' | 'red' | 'none' {
   if (days === null) return 'none'
   if (days > 5) return 'green'
@@ -422,13 +435,26 @@ export default function DashboardPage() {
     }
   }
 
+  // How the birthday wish goes out: 'api' = WhatsApp Business API (PRO GYM number),
+  // 'app' = opens WhatsApp on the admin's phone with the message typed in (old way).
+  const [bdayMode, setBdayMode] = useState<'api' | 'app'>(() =>
+    localStorage.getItem(BDAY_MODE_KEY) === 'app' ? 'app' : 'api')
+  function changeBdayMode(m: 'api' | 'app') {
+    setBdayMode(m)
+    localStorage.setItem(BDAY_MODE_KEY, m)
+  }
+
   async function giftBirthdayProcoins(member: BirthdayMember) {
+    // Open WhatsApp synchronously inside the tap — browsers block window.open after an await
+    const waUrl = bdayMode === 'app' ? birthdayWaUrl(member) : null
+    if (waUrl) window.open(waUrl, '_blank')
     setBirthdayGifting(member.id)
     try {
       const res  = await fetch(`${API_BASE}/procoins/sendToClient.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: String(member.id), amount: 25, description: 'Birthday Gift', isBirthday: true }),
+        body: JSON.stringify({ clientId: String(member.id), amount: 25, description: 'Birthday Gift', isBirthday: true,
+                               whatsappApi: bdayMode === 'api' }),
       })
       const data = await res.json()
       if (data.success) setBirthdayGifted(prev => new Set([...prev, member.id]))
@@ -832,6 +858,20 @@ export default function DashboardPage() {
               </div>
             )}
             {!birthdayLoading && birthdayMembers.length > 0 && (
+              <div className="flex items-center justify-between gap-2 pb-2 mb-1 border-b border-gray-50">
+                <span className="text-[11px] text-gray-500">Send wish via</span>
+                <div className="flex p-0.5 rounded-lg bg-gray-100 text-[11px] font-bold">
+                  {([['api', '⚡ WhatsApp API'], ['app', '📱 My WhatsApp']] as const).map(([k, label]) => (
+                    <button key={k} type="button" onClick={() => changeBdayMode(k)}
+                      title={k === 'api' ? 'Sent automatically from the PRO GYM WhatsApp number' : 'Opens WhatsApp on this phone with the message ready — you tap Send'}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${bdayMode === k ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!birthdayLoading && birthdayMembers.length > 0 && (
               <ul className="divide-y divide-gray-50">
                 {birthdayMembers.map(m => {
                   return (
@@ -852,17 +892,25 @@ export default function DashboardPage() {
                           const gifting = birthdayGifting === m.id
                           return (<>
                             {/* Resend only after gifting — the WhatsApp text says the coins were credited */}
-                            {gifted && m.mobile && (
+                            {gifted && m.mobile && (bdayMode === 'api' ? (
                               <WhatsAppApiButton
                                 kind="birthday"
                                 clientId={m.id}
                                 title={`Resend birthday wish to ${m.name} on WhatsApp`}
                                 className="w-9 h-9 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 disabled:opacity-60 transition-colors"
                               />
-                            )}
+                            ) : birthdayWaUrl(m) && (
+                              <a href={birthdayWaUrl(m)!} target="_blank" rel="noopener noreferrer"
+                                title={`Open WhatsApp to wish ${m.name} again`}
+                                className="w-9 h-9 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-colors text-base">
+                                📱
+                              </a>
+                            ))}
                             <button
                               onClick={e => { e.stopPropagation(); giftBirthdayProcoins(m) }}
-                              title="Credits 25 ProCoins and sends the birthday wish on WhatsApp + email"
+                              title={bdayMode === 'api'
+                                ? 'Credits 25 ProCoins and sends the birthday wish on WhatsApp (PRO GYM number) + email'
+                                : 'Credits 25 ProCoins + email, and opens WhatsApp on this phone with the wish ready to send'}
                               disabled={gifted || gifting || birthdayGifting !== null}
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                                 gifted

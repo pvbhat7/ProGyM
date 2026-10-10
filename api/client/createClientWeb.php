@@ -23,9 +23,26 @@
     $reference  = isset($data['reference'])  ? trim($data['reference'])  : '';
     $photoData  = isset($data['photo'])      ? $data['photo']            : '';
 
+    // Admin-only form — the security PIN is checked here, not just in the browser.
+    $pin_file   = __DIR__ . '/../../config/security_pin.txt';
+    $stored_pin = file_exists($pin_file) ? trim(file_get_contents($pin_file)) : '1234';
+    if (!isset($data['pin']) || (string)$data['pin'] !== $stored_pin) {
+        http_response_code(403);
+        echo json_encode(["message" => "Security PIN required"]);
+        exit;
+    }
+
     if (!$name || !$mobile) {
         http_response_code(400);
         echo json_encode(["message" => "name and mobile are required"]);
+        exit;
+    }
+
+    $dup = $db->prepare("SELECT id FROM client WHERE mobile = ? AND COALESCE(discontinue,'') <> 'true' LIMIT 1");
+    $dup->execute([$mobile]);
+    if ($dup->fetchColumn()) {
+        http_response_code(409);
+        echo json_encode(["message" => "This mobile number is already registered"]);
         exit;
     }
 

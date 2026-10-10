@@ -5,13 +5,8 @@
     header("Access-Control-Max-Age: 3600");
     header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
+    // The PIN itself is no longer returned — this endpoint was public, which let anyone
+    // read it and bypass the Add Client gate. Use validateSecurityPin.php to check a PIN.
     $pin_file = __DIR__ . '/../../config/security_pin.txt';
-
-    if (!file_exists($pin_file)) {
-        echo json_encode(array("pin" => "1234"));
-        exit();
-    }
-
-    $pin = trim(file_get_contents($pin_file));
-    echo json_encode(array("pin" => $pin));
+    echo json_encode(array("set" => file_exists($pin_file)));
 ?>

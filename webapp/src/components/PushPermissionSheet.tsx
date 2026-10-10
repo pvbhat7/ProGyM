@@ -11,9 +11,19 @@ import type { PushStatus } from '../services/pushNotifications'
 //   'default'            → one big Allow button
 //   'denied'             → browser won't ask again: show how to re-enable in
 //                          settings + "Check again" (also re-checks on return)
-//   'ios-needs-install'  → iPhone Safari can't push: Add-to-Home-Screen guide
+//   'ios-needs-install'  → iPhone Safari can't push: Add-to-Home-Screen guide.
+//                          NOT a hard block — Safari can't tell whether the app is already on
+//                          the Home Screen (its login is separate), so the member can continue
+//                          in the browser; the guide comes back after IOS_SNOOZE_DAYS.
 //   'unsupported'        → let through — nothing the member could do
 //   'granted'            → let through
+
+const IOS_SNOOZE_KEY  = 'progym_ios_install_snooze_until'
+const IOS_SNOOZE_DAYS = 3
+
+function iosInstallSnoozed(): boolean {
+  return Date.now() < Number(localStorage.getItem(IOS_SNOOZE_KEY) || 0)
+}
 
 function isInAppBrowser(): boolean {
   return /FBAN|FBAV|Instagram|Line\/|WhatsApp|Snapchat/i.test(navigator.userAgent)
@@ -49,6 +59,12 @@ export default function PushPermissionSheet() {
   const [status, setStatus] = useState<PushStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [checked, setChecked] = useState(false)
+  const [snoozed, setSnoozed] = useState(iosInstallSnoozed)
+
+  function continueInBrowser() {
+    localStorage.setItem(IOS_SNOOZE_KEY, String(Date.now() + IOS_SNOOZE_DAYS * 86400000))
+    setSnoozed(true)
+  }
 
   const isMember = !!user && (user.role === 'member' || user.role === 'trainer') && !isTabDashboardMobile(user.mobile)
 
@@ -71,6 +87,7 @@ export default function PushPermissionSheet() {
   }, [isMember, user])
 
   if (!isMember || status === null || status === 'granted' || status === 'unsupported') return null
+  if (status === 'ios-needs-install' && snoozed) return null
 
   async function allow() {
     if (!user) return
@@ -154,6 +171,22 @@ export default function PushPermissionSheet() {
                 ]} />
               </>
             )
+          )}
+
+          {status === 'ios-needs-install' && (
+            <>
+              <div className="mt-4 rounded-2xl bg-green-50 border border-green-100 p-3 text-sm text-green-800 text-left leading-snug">
+                <b>Already added ProGym to your Home Screen?</b> Open it from there and log in with the same
+                mobile number — your account is ready.
+              </div>
+              <button
+                onClick={continueInBrowser}
+                className="mt-5 w-full rounded-2xl border-2 border-orange-200 bg-white py-3 text-sm font-bold text-orange-700 hover:bg-orange-50"
+              >
+                Continue in browser for now
+              </button>
+              <p className="mt-1.5 text-[11px] text-gray-400">You won't get notifications in the browser.</p>
+            </>
           )}
 
           <button onClick={logout} className="mt-6 text-sm font-medium text-gray-400 hover:text-gray-600">

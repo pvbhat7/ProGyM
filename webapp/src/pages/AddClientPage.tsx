@@ -171,27 +171,22 @@ export default function AddClientPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const referenceDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Device-approved (admin) devices go through the PIN gate and land back on
-  // /members after a save. Unapproved devices — QR self-registration from a
-  // new prospect's phone — skip the PIN gate and see a success modal with a
-  // "Continue to Login" button (they can't reach /admin-panel anyway).
+  // Device-approved (admin) devices land back on /members after a save; others
+  // see a success modal. Strangers now sign up from the login screen instead.
   const deviceApproved = isDeviceApproved()
 
   // ── Security PIN gate ───────────────────────────────────────────────────
-  // The /members/new route is reachable by direct URL. Without this, anyone
-  // who knows the URL can skip the PIN prompt shown on the Admin Panel.
-  //
-  // The PIN pass is delivered via React Router navigation state (one-time —
-  // clears on refresh, forcing re-entry) instead of sessionStorage. This
-  // prevents the "PIN required on first open but skipped after refresh" bug.
+  // Always required (no device bypass). The verified PIN arrives via React Router
+  // navigation state from the Admin Panel (one-time — cleared on refresh, forcing
+  // re-entry) or from the dialog below, and is sent with the create request so
+  // the server checks it too (createClientWeb.php rejects a missing/wrong PIN).
   const location = useLocation()
-  const pinFromNav = (location.state as { pinJustPassed?: boolean } | null)?.pinJustPassed === true
-  const [pinPassed, setPinPassed] = useState<boolean>(() => !deviceApproved || pinFromNav)
+  const pinFromNav = (location.state as { pin?: string } | null)?.pin ?? ''
+  const [pin, setPin] = useState<string>(pinFromNav)
+  const pinPassed = pin !== ''
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
-  // Consume the navigation-state PIN pass immediately so a refresh (which
-  // preserves history state in some browsers) can't reuse it. After first
-  // read we replace the state with an empty object.
+  // Consume the navigation-state PIN immediately so a refresh can't reuse it.
   useEffect(() => {
     if (pinFromNav) {
       window.history.replaceState({}, '')
@@ -293,9 +288,11 @@ export default function AddClientPage() {
           bloodGroup: form.bloodGroup,
           reference:  selectedMember ? selectedMember.id : '',
           photo:      photoBase64,
+          pin,
         }),
       })
       const data = await res.json()
+      if (res.status === 403) { setPin(''); return }   // PIN changed/wrong — ask again
       if (!res.ok) { setApiError(data.message || 'Failed to create client'); return }
       setShowSuccessModal(true)
     } catch {
@@ -314,7 +311,7 @@ export default function AddClientPage() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <SecurityPinDialog
-          onSuccess={() => setPinPassed(true)}
+          onSuccess={p => setPin(p)}
           onCancel={() => navigate('/admin-panel', { replace: true })}
         />
       </div>

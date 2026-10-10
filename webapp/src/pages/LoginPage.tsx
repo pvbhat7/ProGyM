@@ -20,10 +20,6 @@ export default function LoginPage() {
   const { login } = useAuth()
   const next: string | undefined = (location.state as { next?: string } | null)?.next
 
-  const showToast = (msg: string, type: 'error' | 'info' = 'error') => {
-    setToast({ msg, type })
-  }
-
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), 5000)
@@ -64,7 +60,10 @@ export default function LoginPage() {
     setGoogleError('')
     setGoogleLoading(true)
     try {
-      const { googleUid, email } = await signInWithGoogle()
+      const { googleUid, email, displayName, idToken } = await signInWithGoogle()
+      const goSignup = () => navigate('/signup', {
+        state: { method: 'google', googleIdToken: idToken, email: email ?? '', displayName: displayName ?? '', next },
+      })
 
       // 1. Already linked via googleUid → login directly
       const uidRes = await fetch(`${API_BASE}/client/byGoogleUid.php?googleUid=${encodeURIComponent(googleUid)}`)
@@ -76,17 +75,12 @@ export default function LoginPage() {
       }
 
       // 2. Not linked yet — try matching by email silently
-      if (!email) {
-        showToast('Your Google account has no email. Please use mobile + OTP to login.')
-        return
-      }
+      // Not a member yet → self sign-up (asks name + OTP-verified mobile)
+      if (!email) { goSignup(); return }
       const emailRes = await fetch(`${API_BASE}/client/byEmail.php?email=${encodeURIComponent(email)}`)
       const emailData = await emailRes.json()
 
-      if (!emailData.id || emailData.id === 0) {
-        showToast('Your Google email is not registered with this gym. Please contact your admin.')
-        return
-      }
+      if (!emailData.id || emailData.id === 0) { goSignup(); return }
 
       // Auto-link in background, then login
       fetch(`${API_BASE}/client/linkGoogleUid.php`, {
@@ -328,7 +322,11 @@ export default function LoginPage() {
                 </p>
               )}
 
-              <p className="text-center text-xs text-gray-400 mt-6">
+              <p className="text-center text-xs text-gray-500 mt-5">
+                <b className="text-gray-700">New to ProGym?</b> Use your mobile or Google above — we'll create your account after verification.
+              </p>
+
+              <p className="text-center text-xs text-gray-400 mt-3">
                 By continuing, you agree to our Terms &amp; Privacy Policy
               </p>
             </div>

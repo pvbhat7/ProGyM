@@ -740,6 +740,7 @@ Tracks scheduled batch job runs (e.g. auto enable/disable profiles on package ex
 8. **Batch jobs**: `batch_logs` tracks automated jobs that enable/disable client profiles based on `packagedetails.endDate`.
 9. **`module` table**: Single-row feature flag table that controls which features (diet, workout, email, sms, etc.) are active for the gym instance.
 10. **`fcmtoken` table name**: Actual DB table is `fcmtoken` (all lowercase), even though PHP class files reference it as `fcmToken`.
+11. **WhatsApp API gateway**: All WhatsApp API calls go through `WhatsApp::apiUrl()` — never hard-code graph.facebook.com. Config `api_base` switches the gateway (default Meta; Tavros Connect = https://tavrosconnect.com).
 
 ---
 

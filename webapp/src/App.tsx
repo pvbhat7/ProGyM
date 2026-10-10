@@ -10,6 +10,7 @@ import MembersPage from './pages/MembersPage'
 import PackagesPage from './pages/PackagesPage'
 import MemberDetailPage from './pages/MemberDetailPage'
 import AddClientPage from './pages/AddClientPage'
+import SignupPage from './pages/SignupPage'
 import AttendancePage from './pages/AttendancePage'
 import RolesPage from './pages/RolesPage'
 import AdminPanelPage from './pages/AdminPanelPage'
@@ -128,6 +129,7 @@ function AppRoutes() {
       <Route path="/payment-status"   element={<PaymentStatusPage />} />
       <Route path="/login"            element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/otp"              element={<PublicRoute><OtpPage /></PublicRoute>} />
+      <Route path="/signup"           element={<PublicRoute><SignupPage /></PublicRoute>} />
 
       {/* Admin routes */}
       <Route path="/dashboard"        element={<AdminRoute><DashboardPage /></AdminRoute>} />

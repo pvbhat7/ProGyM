@@ -1,10 +1,15 @@
 <?php
 /**
- * "Member checked in" alert to admin + chosen staff contacts.
+ * Admin alerts to the admin + chosen staff contacts (Settings → Admin Alerts):
+ *   - attendance: member's first check-in of the day (optional zone filter)
+ *   - signup:     someone created an account from the login screen
  *
  * Settings live in config/feature_flags.json (edited from Admin → Settings):
- *   whatsappAttendanceAlert  bool   WhatsApp channel — ON unless explicitly false (legacy default)
- *   pushAttendanceAlert      bool   Firebase push channel — OFF unless explicitly true
+ *   whatsappAttendanceAlert  bool   WhatsApp channel for ALL alert types — ON unless false (legacy key name)
+ *   pushAttendanceAlert      bool   Push channel for ALL alert types — OFF unless true (legacy key name)
+ *   alertAttendance          bool   attendance alert on/off — ON unless false
+ *   alertSignup              bool   sign-up alert on/off — ON unless false
+ *   attendanceAlertZones     str[]  zones that trigger the attendance alert (missing = all)
  *   attendanceAlertClientIds int[]  recipients (client ids). When the key is missing we fall
  *                                   back to the members matching whatsapp.json
  *                                   `attendance_alert_numbers` (the old hard-wired admin number).
@@ -115,12 +120,29 @@ class AttendanceAlert {
     }
 
     /** Fire the alert. Only on the member's first attendance row of the day. */
+    /** Delivery channels — shared by every admin alert type. */
+    public static function channels() {
+        $f = self::flags();
+        return array(
+            'wa'   => !(isset($f['whatsappAttendanceAlert']) && !$f['whatsappAttendanceAlert']),   // legacy key, ON by default
+            'push' => !empty($f['pushAttendanceAlert']),                                          // legacy key, OFF by default
+        );
+    }
+
+    /** Alert types — each can be switched off on its own (ON by default). */
+    const TYPE_KEYS = array('attendance' => 'alertAttendance', 'signup' => 'alertSignup');
+
+    public static function typeOn($type) {
+        $f = self::flags();
+        $k = self::TYPE_KEYS[$type];
+        return !(isset($f[$k]) && !$f[$k]);
+    }
+
     public static function send(PDO $db, $clientId) {
         try {
-            $flags    = self::flags();
-            $useWa    = !(isset($flags['whatsappAttendanceAlert']) && !$flags['whatsappAttendanceAlert']);
-            $usePush  = !empty($flags['pushAttendanceAlert']);
-            if (!$useWa && !$usePush) return;
+            if (!self::typeOn('attendance')) return;
+            $ch = self::channels();
+            if (!$ch['wa'] && !$ch['push']) return;
 
             date_default_timezone_set('Asia/Calcutta');
             $s = $db->prepare("SELECT COUNT(*) FROM attendance WHERE cid = ? AND date = ?");
@@ -139,55 +161,117 @@ class AttendanceAlert {
             $member = $s->fetchColumn();
             if (!$member) return;
 
-            self::deliver($db, intval($clientId), $member, $info, $useWa, $usePush, 'att-' . intval($clientId) . '-' . date('Ymd'));
+            self::deliver($db, $ch, self::attendanceMessage(intval($clientId), $member, $info,
+                'att-' . intval($clientId) . '-' . date('Ymd')));
         } catch (Throwable $e) {
             error_log('AttendanceAlert error: ' . $e->getMessage());
         }
     }
 
+    /** Someone created an account from the login screen. $via = 'Mobile OTP' | 'Google'. */
+    public static function signup(PDO $db, $clientId, $via) {
+        try {
+            if (!self::typeOn('signup')) return;
+            $ch = self::channels();
+            if (!$ch['wa'] && !$ch['push']) return;
+            date_default_timezone_set('Asia/Calcutta');
+            $s = $db->prepare("SELECT name, mobile FROM client WHERE id = ? LIMIT 1");
+            $s->execute(array(intval($clientId)));
+            $c = $s->fetch(PDO::FETCH_ASSOC);
+            if (!$c) return;
+            self::deliver($db, $ch, self::signupMessage(intval($clientId), $c['name'], $c['mobile'], $via, 'signup-' . intval($clientId)));
+        } catch (Throwable $e) {
+            error_log('AttendanceAlert signup error: ' . $e->getMessage());
+        }
+    }
+
     /**
-     * Admin "Test Notification" — sends a sample alert to every contact over the channels
-     * that are ON. Skips the first-check-in and zone filters.
+     * Admin "Test" — sends a sample of one alert type to every contact over the channels
+     * that are ON. Ignores the type on/off switch and the attendance filters.
      * @return array ['contacts' => n, 'whatsapp' => [on, sent, failed], 'push' => [on, devices, sent, failed]]
      */
-    public static function sendTest(PDO $db) {
-        $flags   = self::flags();
-        $useWa   = !(isset($flags['whatsappAttendanceAlert']) && !$flags['whatsappAttendanceAlert']);
-        $usePush = !empty($flags['pushAttendanceAlert']);
+    public static function sendTest(PDO $db, $type = 'attendance') {
+        $ch = self::channels();
         date_default_timezone_set('Asia/Calcutta');
+        if ($type === 'signup') {
+            return self::deliver($db, $ch, self::signupMessage(0, 'Test Member', '9876543210', 'Mobile OTP', 'signup-test-' . time()));
+        }
         // Sample shows a random zone colour so the admin can see how each looks
         $samples = array(
             array('zone' => 'red',    'days' => -3),
             array('zone' => 'yellow', 'days' => 2),
             array('zone' => 'green',  'days' => 18),
         );
-        $info = $samples[array_rand($samples)];
-        return self::deliver($db, 0, 'Test Member', $info, $useWa, $usePush, 'att-test-' . time());
+        return self::deliver($db, $ch, self::attendanceMessage(0, 'Test Member', $samples[array_rand($samples)], 'att-test-' . time()));
     }
 
-    /** Send one alert to all contacts; returns per-channel counts. */
-    private static function deliver(PDO $db, $clientId, $member, $zoneInfo, $useWa, $usePush, $nid) {
+    // ── Messages ─────────────────────────────────────────────────────────
+    // 'wa' is a list of [template, params] tried in order until one is accepted;
+    // '{contact}' in a param is replaced with the recipient's name.
+
+    private static function attendanceMessage($clientId, $member, $zoneInfo, $nid) {
         list($dot, $status) = self::zoneBadge($zoneInfo);
+        $time = date('h:i A');
+        $day  = date('d/m/Y');
+        return array(
+            'type'     => 'attendance_alert',
+            'clientId' => $clientId,
+            // Template text is fixed — the zone dot rides on the name
+            'wa'       => array(array(WhatsApp::TPL_ATTENDANCE, array($dot . ' ' . $member, $time, $day))),
+            'push'     => array(
+                'title' => $dot . ' ' . $member . ' checked in',
+                'body'  => $status . "\n" . 'Attendance marked at ' . $time . ' · ' . $day,
+                'nid'   => $nid,
+                // Tap → that member's profile (admin/trainer page; test alert → members list)
+                'link'  => $clientId > 0 ? 'members/' . intval($clientId) : 'members',
+            ),
+        );
+    }
+
+    private static function signupMessage($clientId, $name, $mobile, $via, $nid) {
+        $when = date('d/m/Y h:i A');
+        return array(
+            'type'     => 'signup_alert',
+            'clientId' => $clientId,
+            'wa'       => array(
+                array(WhatsApp::TPL_SIGNUP_ALERT, array($name, $mobile, $via, $when)),
+                // Fallback while the dedicated template is pending Meta review (params can't contain newlines)
+                array(WhatsApp::TPL_ANNOUNCEMENT, array('{contact}',
+                    "Staff alert: new account on the ProGym app. Name: $name, Mobile: $mobile, via $via, on $when.")),
+            ),
+            'push'     => array(
+                'title' => '🆕 New sign-up: ' . $name,
+                'body'  => '+91 ' . $mobile . ' · via ' . $via . "\n" . $when,
+                'nid'   => $nid,
+                'link'  => $clientId > 0 ? 'members/' . intval($clientId) : 'members',
+            ),
+        );
+    }
+
+    /** Send one message to all contacts over the given channels; returns per-channel counts. */
+    private static function deliver(PDO $db, $ch, $msg) {
         $contacts = self::contacts($db);
         $stats = array(
             'contacts' => count($contacts),
-            'whatsapp' => array('on' => $useWa,   'sent' => 0, 'failed' => 0),
-            'push'     => array('on' => $usePush, 'devices' => 0, 'sent' => 0, 'failed' => 0),
+            'whatsapp' => array('on' => $ch['wa'],   'sent' => 0, 'failed' => 0),
+            'push'     => array('on' => $ch['push'], 'devices' => 0, 'sent' => 0, 'failed' => 0),
         );
         if (empty($contacts)) return $stats;
-        $time = date('h:i A');
-        $day  = date('d/m/Y');
 
-        if ($useWa) {
+        if ($ch['wa']) {
             foreach ($contacts as $c) {
                 if (empty($c['mobile'])) { $stats['whatsapp']['failed']++; continue; }
-                $ok = WhatsApp::sendTemplate($db, 'attendance_alert', $clientId, $c['mobile'], WhatsApp::TPL_ATTENDANCE,
-                    array($dot . ' ' . $member, $time, $day));   // template text is fixed — the dot rides on the name
+                $ok = false;
+                foreach ($msg['wa'] as $tpl) {
+                    $params = array_map(function ($p) use ($c) { return str_replace('{contact}', $c['name'], $p); }, $tpl[1]);
+                    $ok = WhatsApp::sendTemplate($db, $msg['type'], $msg['clientId'], $c['mobile'], $tpl[0], $params);
+                    if ($ok) break;
+                }
                 $stats['whatsapp'][$ok ? 'sent' : 'failed']++;
             }
         }
 
-        if ($usePush) {
+        if ($ch['push']) {
             $ids = array_map(function ($c) { return $c['id']; }, $contacts);
             $in  = implode(',', array_fill(0, count($ids), '?'));
             $d   = $db->prepare("SELECT id, token FROM push_tokens WHERE is_active = 'yes' AND client_id IN ($in)");
@@ -195,11 +279,7 @@ class AttendanceAlert {
             $devices = $d->fetchAll(PDO::FETCH_ASSOC);
             $stats['push']['devices'] = count($devices);
             if ($devices) {
-                $r = PushSender::sendToTokens($db, $devices, array(
-                    'title' => $dot . ' ' . $member . ' checked in',
-                    'body'  => $status . "\n" . 'Attendance marked at ' . $time . ' · ' . $day,
-                    'nid'   => $nid,
-                ));
+                $r = PushSender::sendToTokens($db, $devices, $msg['push']);
                 $stats['push']['sent']   = $r['sent'];
                 $stats['push']['failed'] = $r['failed'];
             }

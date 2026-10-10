@@ -507,7 +507,7 @@ export default function AdminPanelPage() {
 
     {showPinDialog && (
       <SecurityPinDialog
-        onSuccess={() => { setShowPinDialog(false); navigate('/members/new', { state: { pinJustPassed: true } }) }}
+        onSuccess={pin => { setShowPinDialog(false); navigate('/members/new', { state: { pin } }) }}
         onCancel={() => setShowPinDialog(false)}
       />
     )}
